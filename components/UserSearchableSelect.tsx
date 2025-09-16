@@ -39,7 +39,7 @@ export function UserSearchableSelect({
       (user.email?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
       (user.phone?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
       
-    const isEligibleRole = user.role === 'ROLE_STATION_MANAGER' || user.role === 'ROLE_ADMIN';
+  const isEligibleRole = user.role === 'station_manager' || user.role === 'admin';
     const isActive = user.status === 'ACTIVE';
     
     return matchesSearch && isEligibleRole && isActive;
@@ -94,9 +94,9 @@ export function UserSearchableSelect({
 
   const getUserRoleColor = (role: string) => {
     switch (role) {
-      case 'ROLE_ADMIN':
+      case 'admin':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'ROLE_STATION_MANAGER':
+      case 'station_manager':
         return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -105,10 +105,12 @@ export function UserSearchableSelect({
 
   const getUserRoleLabel = (role: string) => {
     switch (role) {
-      case 'ROLE_ADMIN':
-        return 'ROLE_ADMIN';
-      case 'ROLE_STATION_MANAGER':
-        return 'ROLE_STATION_MANAGER';
+      case 'admin':
+        return 'Admin';
+      case 'station_manager':
+        return 'Station Manager';
+      case 'super_admin':
+        return 'Super Admin';
       default:
         return role;
     }
