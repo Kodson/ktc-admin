@@ -102,7 +102,7 @@ function AppContent() {
     switch (activeView) {
       case 'dashboard':
         // Show AdminDashboard for Admin and Super Admin users
-        if (user.role === 'admin' || user.role === 'super_admin') {
+        if (user.role === 'ROLE_ADMIN' || user.role === 'ROLE_SUPER_ADMIN') {
           return <AdminDashboard />;
         }
         // Show regular Dashboard for Station Manager

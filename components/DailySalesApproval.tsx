@@ -82,15 +82,13 @@ export function DailySalesApproval() {
   
   const {
     entries,
-    statistics,
     isLoading,
     isSubmitting,
     connectionStatus,
     lastError,
     filters,
     refreshData,
-    updateFilters,
-    hasData
+    updateFilters
   } = useSalesEntries();
   
   // Filter entries to show only those needing approval (VALIDATED status)
@@ -193,7 +191,7 @@ export function DailySalesApproval() {
       
       // Show success message
       toast.success('Entry approved successfully!', {
-        description: `${selectedEntry.product} entry for ${selectedEntry.stationName} has been approved.`
+  description: `${selectedEntry.product} entry for ${selectedEntry.station} has been approved.`
       });
       
     } catch (error) {
@@ -342,7 +340,6 @@ export function DailySalesApproval() {
   };
 
   const allSelected = filteredEntries.length > 0 && selectedEntries.length === filteredEntries.length;
-  const someSelected = selectedEntries.length > 0 && selectedEntries.length < filteredEntries.length;
 
   return (
     <div className="card-responsive">
@@ -595,7 +592,6 @@ export function DailySalesApproval() {
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={handleSelectAll}
-                      indeterminate={someSelected}
                     />
                   </TableHead>
                   <TableHead className="text-sm sm:text-base font-medium">Date & Product</TableHead>
@@ -749,7 +745,7 @@ export function DailySalesApproval() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm sm:text-base font-medium">Station</Label>
-                  <p className="text-sm sm:text-base font-normal mt-1">{selectedEntry.stationName}</p>
+                  <p className="text-sm sm:text-base font-normal mt-1">{selectedEntry.station}</p>
                 </div>
                 <div>
                   <Label className="text-sm sm:text-base font-medium">Product</Label>
@@ -800,7 +796,7 @@ export function DailySalesApproval() {
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Total Value</Label>
-                    <p className="text-sm sm:text-base font-normal mt-1 font-medium">{formatCurrency(selectedEntry.value)}</p>
+                    <p className="text-sm sm:text-base font-medium mt-1">{formatCurrency(selectedEntry.value)}</p>
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Cash Sales</Label>
@@ -858,7 +854,7 @@ export function DailySalesApproval() {
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Cash Variance</Label>
-                    <p className={`text-sm sm:text-base font-normal mt-1 font-medium ${
+                    <p className={`text-sm sm:text-base font-medium mt-1 ${
                       Math.abs(selectedEntry.cashToBank - selectedEntry.bankLodgement) <= 100
                         ? 'text-green-600' : 'text-red-600'
                     }`}>
@@ -921,7 +917,7 @@ export function DailySalesApproval() {
               <span>Approve Sales Entry</span>
             </DialogTitle>
             <DialogDescription className="text-sm sm:text-base font-normal">
-              {selectedEntry && `Approve the validated sales entry for ${selectedEntry.stationName} on ${formatDate(selectedEntry.date)}`}
+              {selectedEntry && `Approve the validated sales entry for ${selectedEntry.station} on ${formatDate(selectedEntry.date)}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -997,7 +993,7 @@ export function DailySalesApproval() {
               <span>Reject Sales Entry</span>
             </DialogTitle>
             <DialogDescription className="text-sm sm:text-base font-normal">
-              {selectedEntry && `Reject the validated sales entry for ${selectedEntry.stationName} on ${formatDate(selectedEntry.date)}`}
+              {selectedEntry && `Reject the validated sales entry for ${selectedEntry.station} on ${formatDate(selectedEntry.date)}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1093,7 +1089,7 @@ export function DailySalesApproval() {
                   const entry = pendingEntries.find(e => e.id === id);
                   return entry ? (
                     <div key={id} className="flex justify-between py-1">
-                      <span className="text-sm sm:text-base font-normal">{entry.stationName}</span>
+                      <span className="text-sm sm:text-base font-normal">{entry.station}</span>
                       <span className="text-sm sm:text-base font-medium">{formatCurrency(entry.value)}</span>
                     </div>
                   ) : null;
@@ -1163,7 +1159,7 @@ export function DailySalesApproval() {
                   const entry = pendingEntries.find(e => e.id === id);
                   return entry ? (
                     <div key={id} className="flex justify-between py-1">
-                      <span className="text-sm sm:text-base font-normal">{entry.stationName}</span>
+                      <span className="text-sm sm:text-base font-normal">{entry.station}</span>
                       <span className="text-sm sm:text-base font-medium">{formatCurrency(entry.value)}</span>
                     </div>
                   ) : null;

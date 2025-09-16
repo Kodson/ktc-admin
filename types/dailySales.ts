@@ -41,7 +41,7 @@ export interface DailySalesEntry {
   stationName: string;
   enteredBy: string;
   enteredAt: string;
-  status: 'DRAFT' | 'SUBMITTED' | 'VALIDATED' | 'APPROVED';
+  status: 'DRAFT' | 'SUBMITTED' | 'VALIDATED' | 'APPROVED' | 'REJECTED';
   validatedBy?: string;
   validatedAt?: string;
   approvedBy?: string;
