@@ -91,7 +91,9 @@ export function UserManagement() {
     password: '',
     confirmPassword: '',
     mustChangePassword: true,
-    notes: ''
+    notes: '',
+    isActive: true,
+    isNonLocked: true,
   });
 
   // Password reset form
@@ -104,7 +106,7 @@ export function UserManagement() {
   // UI states
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [], isValid: false });
+  const [passwordStrength, setPasswordStrength] = useState<{ score: number; feedback: string[]; isValid: boolean }>({ score: 0, feedback: [], isValid: false });
 
   // Handle form field changes
   const updateFormField = (field: keyof UserFormData, value: any) => {
@@ -196,7 +198,9 @@ export function UserManagement() {
       password: '',
       confirmPassword: '',
       mustChangePassword: true,
-      notes: ''
+      notes: '',
+      isActive: true,
+      isNonLocked: true,
     });
     setPasswordStrength({ score: 0, feedback: [], isValid: false });
   };
@@ -546,7 +550,7 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge className={getRoleColor(user.role)} variant="outline">
-                        {USER_ROLES[user.role]}
+                        {user.role === 'station_manager' ? 'Station Manager' : user.role === 'admin' ? 'Admin' : user.role === 'super_admin' ? 'Super Admin' : user.role}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">

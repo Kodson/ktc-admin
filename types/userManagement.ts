@@ -1,4 +1,5 @@
 // User Management Types for KTC Energy
+export type User = userLists;
 
 export interface userLists {
   id: string;
@@ -35,13 +36,18 @@ export interface userLists {
 }
 
 export interface UserFormData {
+  mustChangePassword?: boolean;
   username: string;
   password: string;
+  confirmPassword?: string;
   email: string;
   role: string;
   phone: string;
   isActive: boolean;
   isNonLocked: boolean;
+  firstName?: string;
+  lastName?: string;
+  notes?: string;
   profileImage?: File | null;
 }
 

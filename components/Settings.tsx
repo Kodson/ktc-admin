@@ -260,7 +260,7 @@ export function Settings() {
     switch (role) {
       case 'super_admin': return 'bg-red-100 text-red-800';
       case 'admin': return 'bg-blue-100 text-blue-800';
-      case 'ROLE_STATION_MANAGER': return 'bg-green-100 text-green-800';
+      case 'station_manager': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -269,7 +269,7 @@ export function Settings() {
     switch (role) {
       case 'super_admin': return 'Super Admin';
       case 'admin': return 'Admin';
-      case 'ROLE_STATION_MANAGER': return 'Station Manager';
+      case 'station_manager': return 'Station Manager';
       default: return role;
     }
   };
