@@ -37,7 +37,7 @@ import {
   WifiOff,
   FileDown
 } from 'lucide-react';
-//import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useStation } from '../contexts/StationContext';
 import { StationIndicator } from './StationIndicator';
 import { useSalesEntries } from '../hooks/useSalesEntries';
