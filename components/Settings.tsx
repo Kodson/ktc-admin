@@ -14,8 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useUserManagement } from '../hooks/useUserManagement';
 import { toast } from 'sonner';
 import { 
-  Settings as SettingsIcon,
-  Building,
+  //Settings as SettingsIcon,
+  //Building,
   Users,
   DollarSign,
   Monitor,
@@ -35,23 +35,11 @@ import {
   X,
   Check,
   AlertTriangle,
-  Info,
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
   Fuel,
   Droplets,
-  Calculator,
   Key,
   Lock,
-  Smartphone,
-  Wifi,
   CreditCard,
-  Palette,
-  Volume2,
-  FileText,
-  Camera
 } from 'lucide-react';
 
 // Mock data for settings
@@ -100,7 +88,7 @@ export function Settings() {
   // Use the comprehensive user management hook
   const { 
     users: fetchedUsers,
-    statistics,
+    //statistics,
     isLoading: isUsersLoading,
     createUser,
     updateUserStatus,
@@ -117,11 +105,23 @@ export function Settings() {
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [newUser, setNewUser] = useState({ 
+  const [newUser, setNewUser] = useState<{ 
+    username: string;
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    confirmPassword: string;
+    role: string;
+    isActive: boolean;
+    isNotLocked: boolean;
+  }>({ 
     username: '', 
+    name: '',
     email: '', 
     phone: '', 
     password: '', 
+    confirmPassword: '',
     role: 'ROLE_STATION_MANAGER', 
     isActive: true, 
     isNotLocked: true 
@@ -141,10 +141,13 @@ export function Settings() {
   const handlePreferenceChange = (field: string, value: any) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      setPreferences(prev => ({
-        ...prev,
-        [parent]: { ...prev[parent as keyof typeof prev], [child]: value }
-      }));
+      setPreferences(prev => {
+        const parentObj = (prev && typeof prev[parent as keyof typeof prev] === 'object') ? prev[parent as keyof typeof prev] : {};
+        return {
+          ...prev,
+          [parent]: { ...parentObj, [child]: value }
+        };
+      });
     } else {
       setPreferences(prev => ({ ...prev, [field]: value }));
     }
@@ -165,9 +168,11 @@ export function Settings() {
   const resetUserForm = () => {
     setNewUser({ 
       username: '', 
+      name: '',
       email: '', 
       phone: '', 
       password: '', 
+      confirmPassword: '',
       role: 'ROLE_STATION_MANAGER', 
       isActive: true, 
       isNotLocked: true 
@@ -1152,7 +1157,17 @@ export function Settings() {
               variant="outline" 
               onClick={() => {
                 setIsAddUserOpen(false);
-                setNewUser({ name: '', email: '', role: 'Station Manager', password: '', confirmPassword: '' });
+                setNewUser({
+                  username: '',
+                  name: '',
+                  email: '',
+                  phone: '',
+                  password: '',
+                  confirmPassword: '',
+                  role: 'ROLE_STATION_MANAGER',
+                  isActive: true,
+                  isNotLocked: true
+                });
               }}
               className="text-sm sm:text-base font-medium"
             >
@@ -1186,7 +1201,7 @@ export function Settings() {
                 <Label className="text-sm sm:text-base font-medium">Full Name</Label>
                 <Input
                   value={selectedUser.name}
-                  onChange={(e) => setSelectedUser(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setSelectedUser((prev: Record<string, any>) => ({ ...prev, name: e.target.value }))}
                   className="text-sm sm:text-base font-normal"
                 />
               </div>
@@ -1196,14 +1211,14 @@ export function Settings() {
                 <Input
                   type="email"
                   value={selectedUser.email}
-                  onChange={(e) => setSelectedUser(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => setSelectedUser((prev: Record<string, any>) => ({ ...prev, email: e.target.value }))}
                   className="text-sm sm:text-base font-normal"
                 />
               </div>
               
               <div className="space-y-2">
                 <Label className="text-sm sm:text-base font-medium">Role</Label>
-                <Select value={selectedUser.role} onValueChange={(value) => setSelectedUser(prev => ({ ...prev, role: value }))}>
+                <Select value={selectedUser.role} onValueChange={(value) => setSelectedUser((prev: Record<string, any>) => ({ ...prev, role: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -1217,7 +1232,7 @@ export function Settings() {
               
               <div className="space-y-2">
                 <Label className="text-sm sm:text-base font-medium">Status</Label>
-                <Select value={selectedUser.status} onValueChange={(value) => setSelectedUser(prev => ({ ...prev, status: value }))}>
+                <Select value={selectedUser.status} onValueChange={(value) => setSelectedUser((prev: Record<string, any>) => ({ ...prev, status: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -1243,9 +1258,7 @@ export function Settings() {
             </Button>
             <Button 
               onClick={() => {
-                setUsers(users.map(user => 
-                  user.id === selectedUser?.id ? selectedUser : user
-                ));
+                // TODO: Implement user update logic using fetchedUsers and updateUserStatus if needed
                 setIsEditUserOpen(false);
                 setSelectedUser(null);
                 setIsChanged(true);
@@ -1510,10 +1523,7 @@ export function Settings() {
             </Button>
             <Button
               onClick={() => {
-                // Update user in the list
-                setUsers(users.map(user => 
-                  user.id === selectedUser.id ? selectedUser : user
-                ));
+                // TODO: Implement user update logic using fetchedUsers and updateUserStatus if needed
                 setIsEditUserOpen(false);
                 setSelectedUser(null);
                 setIsChanged(true);

@@ -1,6 +1,6 @@
 // Example component demonstrating how to use authentication token
 import { useState, useEffect } from 'react';
-import { useToken, useApiHeaders } from '../hooks/useToken';
+import { useToken } from '../hooks/useToken'; //useApiHeaders
 import { apiClient } from '../utils/apiClient';
 
 interface UserProfile {
@@ -13,7 +13,7 @@ interface UserProfile {
 
 export function ExampleApiComponent() {
   const { token, isAuthenticated, user } = useToken();
-  const { getHeaders } = useApiHeaders();
+ // const { getHeaders } = useApiHeaders();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -61,15 +61,15 @@ export function Utility() {
     // State
     isLoading,
     isSubmitting,
-    connectionStatus,
+    //connectionStatus,
     lastError,
     filters,
     
     // Actions
     createUtilityBill,
     updateUtilityBill,
-    deleteUtilityBill,
-    payUtilityBill,
+    //deleteUtilityBill,
+    //payUtilityBill,
     exportUtilityData,
     updateFilters,
     
@@ -81,15 +81,16 @@ export function Utility() {
   const [isAddBillOpen, setIsAddBillOpen] = useState(false);
   const [isViewBillOpen, setIsViewBillOpen] = useState(false);
   const [isEditBillOpen, setIsEditBillOpen] = useState(false);
-  const [isPayBillOpen, setIsPayBillOpen] = useState(false);
+  // Removed unused isPayBillOpen state
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [billForm, setBillForm] = useState(initialBillForm);
+  /*
   const [paymentForm, setPaymentForm] = useState({
     paymentMethod: 'Bank Transfer',
     transactionReference: '',
     notes: ''
   });
-
+*/
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'paid':
@@ -170,7 +171,7 @@ export function Utility() {
       setSelectedBill(null);
     }
   };
-
+/*
   const handlePayBill = async () => {
     if (!selectedBill) return;
     
@@ -189,11 +190,10 @@ export function Utility() {
         transactionReference: '',
         notes: ''
       });
-      setIsPayBillOpen(false);
       setSelectedBill(null);
     }
   };
-
+*/
   const handleViewBill = (bill: any) => {
     setSelectedBill(bill);
     setIsViewBillOpen(true);
@@ -223,14 +223,14 @@ export function Utility() {
   const handleFormChange = (field: string, value: string) => {
     setBillForm(prev => ({ ...prev, [field]: value }));
   };
-
+/*
   const handlePaymentFormChange = (field: string, value: string) => {
     setPaymentForm(prev => ({ ...prev, [field]: value }));
   };
-
+*/
   const handlePayBillClick = (bill: any) => {
-    setSelectedBill(bill);
-    setIsPayBillOpen(true);
+  setSelectedBill(bill);
+  // Removed setIsPayBillOpen, as modal is not rendered
   };
 
   const handleExportReport = async () => {

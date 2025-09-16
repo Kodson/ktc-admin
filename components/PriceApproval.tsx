@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useStation } from '../contexts/StationContext';
+import { useState } from 'react';
+//import { useAuth } from '../contexts/AuthContext';
+//import { useStation } from '../contexts/StationContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   Calendar,
   User,
-  Filter,
+  //Filter,
   Loader2,
   Fuel,
   Building,
@@ -38,8 +38,8 @@ import { KTC_STATIONS, FUEL_TYPES, STATUS_COLORS, PRIORITY_COLORS, VALIDATION_RU
 import type { PriceChange } from '../types/productSharing';
 
 export function PriceApproval() {
-  const { user } = useAuth();
-  const { selectedStation } = useStation();
+  //const { user } = useAuth();
+  //const { selectedStation } = useStation();
   
   const {
     pendingChanges,

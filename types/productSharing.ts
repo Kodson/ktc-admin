@@ -67,7 +67,7 @@ export interface SharedProduct {
 }
 
 export interface BatchProductEntry {
-  id: string;
+  id: number;
   product: string;
   stationQuantities: Record<string, string>;
   rate: string;
@@ -75,8 +75,20 @@ export interface BatchProductEntry {
   totalQty: string;
   amountCost: string;
   amountSales: string;
-  expectedProfit: string;
+  station: string;
+  qty: number;
+  qtyR?: number | null;
+  shortage?: number;
+  overage?: number;
+  expProfit?: number;
+  status: string;
+  expectedProfit?: number;
+  createdBy?: string;
+  date: string;
+  createdAt?: string;
 }
+
+
 
 // Price Change interfaces for approval system
 export interface PriceChange {

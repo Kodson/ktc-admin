@@ -23,7 +23,7 @@ import {
   Droplets,
   Calculator,
   Building,
-  Wallet,
+ // Wallet,
   AlertTriangle
 } from 'lucide-react';
 import { useWashingBayManagement } from '../hooks/useWashingBayManagement';
@@ -35,7 +35,12 @@ const initialEntryForm = {
   pricePerVehicle: '100',
   washingBayCommissionRate: '20',
   expenses: '',
-  notes: ''
+  notes: '',
+  totalSale: '',
+  washingBayCommission: '',
+  companyCommission: '',
+  bankDeposit: '',
+  balancing: ''
 };
 
 export function WashingBay() {
@@ -44,27 +49,27 @@ export function WashingBay() {
     entries,
     statistics,
     analysis,
-    chartData,
+    //chartData,
     
     // State
     isLoading,
     isSubmitting,
-    connectionStatus,
+    //connectionStatus,
     lastError,
     filters,
     
     // Actions
     createWashingBayEntry,
     updateWashingBayEntry,
-    deleteWashingBayEntry,
+    //deleteWashingBayEntry,
     exportWashingBayData,
     updateFilters,
     
     // Utilities
     formatCurrency,
-    calculateCommission,
-    calculateBankDeposit,
-    calculateBalancing
+   // calculateCommission,
+   // calculateBankDeposit,
+   // calculateBalancing
   } = useWashingBayManagement();
   
   // Modal states
@@ -121,11 +126,16 @@ export function WashingBay() {
     setSelectedEntry(entry);
     setEntryForm({
       date: entry.date,
-      noOfVehicles: entry.noOfVehicles.toString(),
-      pricePerVehicle: entry.pricePerVehicle.toString(),
-      washingBayCommissionRate: entry.washingBayCommissionRate.toString(),
-      expenses: entry.expenses.toString(),
-      notes: entry.notes || ''
+      noOfVehicles: entry.noOfVehicles?.toString() ?? '',
+      pricePerVehicle: entry.pricePerVehicle?.toString() ?? '',
+      washingBayCommissionRate: entry.washingBayCommissionRate?.toString() ?? '',
+      expenses: entry.expenses?.toString() ?? '',
+      notes: entry.notes || '',
+      totalSale: entry.totalSale?.toString() ?? '',
+      washingBayCommission: entry.washingBayCommission?.toString() ?? '',
+      companyCommission: entry.companyCommission?.toString() ?? '',
+      bankDeposit: entry.bankDeposit?.toString() ?? '',
+      balancing: entry.balancing?.toString() ?? ''
     });
     setIsEditEntryOpen(true);
   };

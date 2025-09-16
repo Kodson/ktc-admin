@@ -20,12 +20,12 @@ import {
   WifiOff,
   X,
   Loader2,
-  UserPlus,
+  //UserPlus,
   UserMinus,
   DollarSign,
   Edit3,
   Trash2,
-  Eye,
+  //Eye,
   UserCheck
 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
@@ -50,7 +50,7 @@ export function StationManagement() {
   
   const {
     stations,
-    statistics,
+    //statistics,
     isLoading,
     isSubmitting,
     connectionStatus,
@@ -67,7 +67,7 @@ export function StationManagement() {
     updateFilters,
     generateNewStationCode,
     canManageStations,
-    hasData
+    //hasData
   } = useStationManagement();
 
   // Modal states
@@ -742,6 +742,7 @@ export function StationManagement() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Select User</Label>
               <UserSearchableSelect
+                selectedUser={managerAssignmentData.selectedUser ?? null}
                 onUserSelect={(user) => 
                   setManagerAssignmentData(prev => ({ ...prev, selectedUser: user }))
                 }

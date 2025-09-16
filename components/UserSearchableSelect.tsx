@@ -13,6 +13,7 @@ interface UserSearchableSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  roleFilter?: string;
 }
 
 export function UserSearchableSelect({

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+//import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from './ui/dropdown-menu';
 import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
+//import { Separator } from './ui/separator';
 import { useNotifications } from '../contexts/NotificationContext';
 import { 
   Bell, 
@@ -53,7 +53,7 @@ const getNotificationIcon = (type: string) => {
   }
 };
 
-const getNotificationBgColor = (type: string, read: boolean) => {
+const getNotificationBgColor = ( read: boolean) => {//type: string,
   const baseClass = read ? 'bg-background' : 'bg-accent/50';
   return baseClass;
 };
@@ -138,7 +138,7 @@ export function NotificationCenter() {
                   key={notification.id}
                   className={`
                     p-3 rounded-lg cursor-pointer border transition-colors
-                    ${getNotificationBgColor(notification.type, notification.read)}
+                    ${getNotificationBgColor( notification.read)}
                     hover:bg-accent/70
                     ${!notification.read ? 'border-primary/20' : 'border-transparent'}
                   `}

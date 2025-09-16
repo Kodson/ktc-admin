@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -11,9 +10,6 @@ import { Separator } from './ui/separator';
 import { 
   Calculator,
   Calendar,
-  Fuel,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   CheckCircle2,
   Loader2,
@@ -22,12 +18,10 @@ import {
   DollarSign,
   Gauge,
   Package,
-  Building2,
   Info,
   Save,
-  RefreshCw
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+//import { useAuth } from '../contexts/AuthContext';
 import { useStation } from '../contexts/StationContext';
 import { StationIndicator } from './StationIndicator';
 import { useDailySalesEntry } from '../hooks/useDailySalesEntry';
@@ -39,7 +33,7 @@ import {
 } from '../constants/dailySalesConstants';
 
 export function DailySalesEntry() {
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const { selectedStation } = useStation();
   
   const {
@@ -48,7 +42,6 @@ export function DailySalesEntry() {
     previousDayData,
     supplyData,
     isFirstEntry,
-    isLoading,
     isSubmitting,
     connectionStatus,
     lastError,
@@ -82,9 +75,9 @@ export function DailySalesEntry() {
   };
 
   // Format number for display
-  const formatNumber = (value: number | undefined): string => {
+  /*const formatNumber = (value: number | undefined): string => {
     return value !== undefined ? value.toLocaleString() : '';
-  };
+  };*/
 
   // Handle input changes with proper number conversion
   const handleNumericInput = (field: keyof typeof entry, value: string) => {

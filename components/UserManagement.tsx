@@ -17,7 +17,7 @@ import {
   Filter,
   RefreshCw,
   Eye,
-  Edit,
+ // Edit,
   Trash2,
   UserPlus,
   Shield,
@@ -33,8 +33,8 @@ import {
   WifiOff,
   X,
   UserCheck,
-  UserX,
-  UserMinus
+  //UserX,
+  //UserMinus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserManagement } from '../hooks/useUserManagement';
@@ -69,12 +69,11 @@ export function UserManagement() {
     generatePassword,
     validatePasswordStrength,
     canManageUsers,
-    hasData
+   // hasData
   } = useUserManagement();
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
@@ -104,8 +103,8 @@ export function UserManagement() {
   });
 
   // UI states
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword] = useState(false);
+  const [showConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<{ score: number; feedback: string[]; isValid: boolean }>({ score: 0, feedback: [], isValid: false });
 
   // Handle form field changes
@@ -139,8 +138,8 @@ export function UserManagement() {
   // Handle view details
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
-    setShowDetailsModal(true);
-  };
+    // Removed setShowDetailsModal, as modal is not rendered
+  } 
 
   // Handle password reset request
   const handlePasswordResetRequest = (user: User) => {

@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -15,7 +15,7 @@ import {
   FileText, 
   Clock, 
   CheckCircle2,
-  XCircle,
+  //XCircle,
   Search,
   Eye,
   Edit,
@@ -23,21 +23,21 @@ import {
   PlusCircle,
   Calendar,
   Fuel,
-  TrendingUp,
+  //TrendingUp,
   DollarSign,
   X,
   AlertTriangle,
   RefreshCw,
   Filter,
-  Package,
-  Gauge,
-  Building2,
+ // Package,
+ // Gauge,
+ // Building2,
   Loader2,
   Wifi,
   WifiOff,
   FileDown
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+//import { useAuth } from '../contexts/AuthContext';
 import { useStation } from '../contexts/StationContext';
 import { StationIndicator } from './StationIndicator';
 import { useSalesEntries } from '../hooks/useSalesEntries';
@@ -58,12 +58,12 @@ interface SalesEntriesProps {
 }
 
 export function SalesEntries({ onViewChange }: SalesEntriesProps) {
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const { selectedStation } = useStation();
   
   const {
     entries,
-    statistics,
+    //statistics,
     isLoading,
     isSubmitting,
     isExporting,

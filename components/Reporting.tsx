@@ -2,35 +2,35 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
+//import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Separator } from './ui/separator';
+//import { Separator } from './ui/separator';
 import { 
   FileText,
   Download,
-  Calendar,
+ // Calendar,
   TrendingUp,
   DollarSign,
   BarChart3,
-  PieChart,
+  //PieChart,
   Activity,
   Target,
-  ArrowUpDown,
+  //ArrowUpDown,
   Filter,
   RefreshCw,
   Printer,
-  Mail,
+  //Mail,
   Share2,
   Car,
   Fuel,
   Droplets,
-  Zap,
-  Building,
-  Users,
-  Clock,
-  AlertTriangle
+  //Zap,
+  //Building,
+  //Users,
+  //Clock,
+  //AlertTriangle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, AreaChart, Area, Pie } from 'recharts';
 
@@ -125,7 +125,7 @@ const topPerformers = [
 export function Reporting() {
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedPeriod, setSelectedPeriod] = useState('current');
-  const [reportType, setReportType] = useState('summary');
+  //const [reportType, setReportType] = useState('summary');
 
   const getCurrentKPI = () => {
     switch (activeTab) {
@@ -135,7 +135,7 @@ export function Reporting() {
       default: return kpiData.weekly;
     }
   };
-
+/*
   const getCurrentData = () => {
     switch (activeTab) {
       case 'weekly': return weeklyData;
@@ -145,7 +145,7 @@ export function Reporting() {
       default: return weeklyData;
     }
   };
-
+*/
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

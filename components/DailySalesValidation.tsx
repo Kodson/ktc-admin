@@ -77,7 +77,7 @@ export function DailySalesValidation() {
   
   const {
     entries,
-    statistics,
+   // statistics,
     isLoading,
     isSubmitting,
     connectionStatus,
@@ -85,7 +85,7 @@ export function DailySalesValidation() {
     filters,
     refreshData,
     updateFilters,
-    hasData
+    //hasData
   } = useSalesEntries();
   
   // Filter entries to show only those needing validation (SUBMITTED status)

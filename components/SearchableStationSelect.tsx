@@ -9,6 +9,7 @@ import { useStationManagement } from '../hooks/useStationManagement';
 
 
 interface SearchableStationSelectProps {
+  stations: Array<{ name: string; location: string }>;
   value?: string;
   onValueChange: (value: string) => void;
   placeholder?: string;

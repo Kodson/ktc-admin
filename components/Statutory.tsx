@@ -21,7 +21,7 @@ import {
   Search,
   Eye,
   RotateCcw,
-  ExternalLink,
+ // ExternalLink,
   Calendar,
   Building,
   Shield,
@@ -31,7 +31,7 @@ import {
   Heart,
   X,
   Edit,
-  Upload
+  //Upload
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useStatutoryManagement } from '../hooks/useStatutoryManagement';
@@ -62,8 +62,8 @@ export function Statutory() {
     
     // State
     isLoading,
-    isSubmitting,
-    connectionStatus,
+    //isSubmitting,
+    //connectionStatus,
     lastError,
     filters,
     
@@ -71,7 +71,7 @@ export function Statutory() {
     createStatutoryDocument,
     updateStatutoryDocument,
     renewStatutoryDocument,
-    deleteStatutoryDocument,
+   // deleteStatutoryDocument,
     exportStatutoryData,
     updateFilters,
     

@@ -52,7 +52,7 @@ import {
   URGENCY_LEVELS, 
   STATUS_OPTIONS,
 
-  type StationQuantityPair 
+  //type StationQuantityPair 
 } from '../constants/productSharingConstants';
 import{
   calculateProfitMargin
@@ -81,10 +81,9 @@ export function ProductSharing() {
   } = useStationManagement();
   console.log('Stations from useStationManagement:', stations);
   // Convert availableStations to Station objects for SearchableStationSelect
-  const stationOptions = stations.map((stations, index) => ({
-    id: `station-${index}`,
-    name: stations.name || 'Unknown Station',
-    location: undefined
+  const stationOptions = stations.map((station, index) => ({
+    name: station.name || 'Unknown Station',
+    location: typeof station.location === 'string' ? station.location : ''
   }));
   const {
     // State
@@ -122,7 +121,7 @@ export function ProductSharing() {
     handleShareFormChange,
     handleUpdateSharedProductFormChange,
     handleStationQuantityChange,
-    addStationToShare: addStationToShareHook,
+    //addStationToShare: addStationToShareHook,
     removeStationFromShare,
     updateStationQuantity,
     
@@ -196,7 +195,7 @@ export function ProductSharing() {
   const [sharedProductsStatusFilter, setSharedProductsStatusFilter] = useState('All Status');
 
   // Safely filter tanks with defensive checks
-  const filteredTanks = ensureArray(tankData).filter(tank => {
+  const filteredTanks = ensureArray(tankData).filter((tank: any) => {
     if (!tank || typeof tank !== 'object') return false;
     
     const tankName = tank.name || '';
@@ -216,7 +215,7 @@ export function ProductSharing() {
   });
 
   // Safely filter shared products with defensive checks
-  const filteredSharedProducts = ensureArray(sharedProductsData).filter(product => {
+  const filteredSharedProducts = (ensureArray(sharedProductsData) as BatchProductEntry[]).filter((product) => {
     if (!product || typeof product !== 'object') return false;
     
     const productName = product.product || '';
@@ -226,13 +225,14 @@ export function ProductSharing() {
     
     const matchesSearch = 
       productStationQuantities.some(sq => 
-        sq && sq.station && sq.station.toLowerCase().includes(sharedProductsSearch.toLowerCase())
+        sq && typeof sq === 'object' && 'station' in sq && typeof (sq as any).station === 'string' &&
+        (sq as any).station.toLowerCase().includes(sharedProductsSearch.toLowerCase())
       ) ||
       productName.toLowerCase().includes(sharedProductsSearch.toLowerCase()) ||
       productCreatedBy.toLowerCase().includes(sharedProductsSearch.toLowerCase());
     
     const matchesStation = sharedProductsStationFilter === 'All Stations' || 
-      productStationQuantities.some(sq => sq && sq.station === sharedProductsStationFilter);
+      productStationQuantities.some(sq => sq && typeof sq === 'object' && 'station' in sq && (sq as any).station === sharedProductsStationFilter);
     const matchesStatus = sharedProductsStatusFilter === 'All Status' || productStatus === sharedProductsStatusFilter;
     
     return matchesSearch && matchesStation && matchesStatus;
@@ -462,7 +462,7 @@ export function ProductSharing() {
           {/* Tank Cards View */}
           {view === 'cards' && (
             <div className="responsive-grid">
-              {filteredTanks.map((tank) => (
+              {(filteredTanks as any[]).map((tank) => (
                 <Card key={tank.id} className="relative">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
@@ -591,7 +591,7 @@ export function ProductSharing() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTanks.map((tank) => (
+                      {filteredTanks.map((tank: any) => (
                         <TableRow key={tank.id} className="hover:bg-muted/50">
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -846,13 +846,13 @@ export function ProductSharing() {
                     <TableCell className="text-right">
                       <div className="space-y-1">
                         <div className="text-xs text-muted-foreground font-normal">
-                          Cost: {formatCurrency(product.rate)}/L
+                          Cost: {formatCurrency(parseFloat(product.rate))}/L
                         </div>
                         <div className="text-sm sm:text-base font-medium">
-                          Sales: {formatCurrency(product.salesRate)}/L
+                          Sales: {formatCurrency(parseFloat(product.salesRate))}/L
                         </div>
                         <div className="text-xs text-green-600 font-medium">
-                          {calculateProfitMargin(product.salesRate, product.rate).toFixed(1)}% margin
+                          {calculateProfitMargin(parseFloat(product.salesRate), parseFloat(product.rate)).toFixed(1)}% margin
                         </div>
                       </div>
                     </TableCell>
@@ -876,7 +876,19 @@ export function ProductSharing() {
                                 size="sm" 
                                 className="h-8 w-8 p-0"
                                 title="View Details"
-                                onClick={() => openModal('viewSharedProduct', undefined, product)}
+                                onClick={() => openModal('viewSharedProduct', undefined, {
+                                  ...product,
+                                  stationQuantities: Object.entries(product.stationQuantities).map(([station, qty]) => ({ station, qty: Number(qty) })),
+                                  totalQty: Number(product.totalQty),
+                                  rate: Number(product.rate),
+                                  amountCost: Number(product.amountCost),
+                                  amountSales: Number(product.amountSales),
+                                  salesRate: Number(product.salesRate),
+                                  expectedProfit: typeof product.expectedProfit === 'number' ? product.expectedProfit : 0,
+                                  status: ['PENDING', 'APPROVED', 'REJECTED'].includes(product.status) ? product.status as 'PENDING' | 'APPROVED' | 'REJECTED' : 'PENDING',
+                                  createdBy: product.createdBy ?? '',
+                                  createdAt: product.createdAt ?? ''
+                                })}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -887,7 +899,19 @@ export function ProductSharing() {
                                     size="sm" 
                                     className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                     title="Update"
-                                    onClick={() => openModal('updateSharedProduct', undefined, product)}
+                                    onClick={() => openModal('updateSharedProduct', undefined, {
+                                      ...product,
+                                      stationQuantities: Object.entries(product.stationQuantities).map(([station, qty]) => ({ station, qty: Number(qty) })),
+                                      totalQty: Number(product.totalQty),
+                                      rate: Number(product.rate),
+                                      amountCost: Number(product.amountCost),
+                                      amountSales: Number(product.amountSales),
+                                      salesRate: Number(product.salesRate),
+                                      expectedProfit: typeof product.expectedProfit === 'number' ? product.expectedProfit : 0,
+                                      status: ['PENDING', 'APPROVED', 'REJECTED'].includes(product.status) ? product.status as 'PENDING' | 'APPROVED' | 'REJECTED' : 'PENDING',
+                                      createdBy: product.createdBy ?? '',
+                                      createdAt: product.createdAt ?? ''
+                                    })}
                                     disabled={isSubmitting}
                                   >
                                     <Edit className="h-4 w-4" />
@@ -897,7 +921,19 @@ export function ProductSharing() {
                                     size="sm" 
                                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                     title="Delete"
-                                    onClick={() => openModal('deleteSharedProduct', undefined, product)}
+                                    onClick={() => openModal('deleteSharedProduct', undefined, {
+                                      ...product,
+                                      stationQuantities: Object.entries(product.stationQuantities).map(([station, qty]) => ({ station, qty: Number(qty) })),
+                                      totalQty: Number(product.totalQty),
+                                      rate: Number(product.rate),
+                                      amountCost: Number(product.amountCost),
+                                      amountSales: Number(product.amountSales),
+                                      salesRate: Number(product.salesRate),
+                                      expectedProfit: typeof product.expectedProfit === 'number' ? product.expectedProfit : 0,
+                                      status: ['PENDING', 'APPROVED', 'REJECTED'].includes(product.status) ? product.status as 'PENDING' | 'APPROVED' | 'REJECTED' : 'PENDING',
+                                      createdBy: product.createdBy ?? '',
+                                      createdAt: product.createdAt ?? ''
+                                    })}
                                     disabled={isSubmitting}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1141,6 +1177,7 @@ export function ProductSharing() {
             <div className="space-y-2">
               <Label className="text-sm sm:text-base font-medium">Station</Label>
               <SearchableStationSelect 
+                stations={stationOptions}
                 value={stations.find(s => s.name === addTankForm.station)?.id || ''} 
                 onValueChange={(value) => {
                   console.log('Selected station:', value);
@@ -1704,9 +1741,9 @@ export function ProductSharing() {
                     <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded">
                       <div className="flex items-center gap-2">
                         <Fuel className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm sm:text-base font-normal">{sq.station}</span>
+                        <span className="text-sm sm:text-base font-normal">{(sq as { station: string }).station}</span>
                       </div>
-                      <span className="text-sm sm:text-base font-medium">{(sq.qty || 0).toLocaleString()} L</span>
+                      <span className="text-sm sm:text-base font-medium">{((sq as { qty?: number }).qty || 0).toLocaleString()} L</span>
                     </div>
                   ))}
                 </div>
@@ -1719,8 +1756,8 @@ export function ProductSharing() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-sm sm:text-base font-medium">Expected Profit</Label>
-                  <p className={`text-sm sm:text-base font-normal ${(selectedSharedProduct.expProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(selectedSharedProduct.expProfit || 0)}
+                  <p className={`text-sm sm:text-base font-normal ${(selectedSharedProduct.expectedProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(selectedSharedProduct.expectedProfit || 0)}
                   </p>
                 </div>
               </div>
@@ -1968,7 +2005,7 @@ export function ProductSharing() {
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                 <div className="text-sm sm:text-base font-medium">{selectedSharedProduct.product} - {(selectedSharedProduct.totalQty || 0).toLocaleString()}L</div>
                 <div className="text-muted-foreground text-sm sm:text-base font-normal">
-                  {ensureArray(selectedSharedProduct.stationQuantities).map(sq => sq.station).join(', ')}
+                  {ensureArray(selectedSharedProduct.stationQuantities).map(sq => (sq as { station: string }).station).join(', ')}
                 </div>
                 <div className="text-muted-foreground text-sm sm:text-base font-normal">
                   Expected Profit: {formatCurrency(selectedSharedProduct.expectedProfit || 0)}

@@ -26,14 +26,14 @@ import {
   WifiOff,
   DollarSign,
   Share2,
-  ArrowLeftRight,
+  //ArrowLeftRight,
   Zap,
   Filter,
   X,
   Clock,
-  MapPin
+  //MapPin
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+//import { useAuth } from '../contexts/AuthContext';
 import { useStation } from '../contexts/StationContext';
 import { StationIndicator } from './StationIndicator';
 import { useSupplyManagement } from '../hooks/useSupplyManagement';
@@ -50,12 +50,12 @@ import {
 import type { ProductSharingSupply } from '../types/supply';
 
 export function SupplyManagement() {
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const { selectedStation } = useStation();
   
   const {
     supplies,
-    statistics,
+    //statistics,
     isLoading,
     isSubmitting,
     connectionStatus,
@@ -65,9 +65,9 @@ export function SupplyManagement() {
     refreshData,
     updateFilters,
     calculateVariance,
-    pendingSupplies,
-    confirmedSupplies,
-    receivedSupplies,
+   // pendingSupplies,
+   // confirmedSupplies,
+   // receivedSupplies,
     emergencySupplies
   } = useSupplyManagement();
   
