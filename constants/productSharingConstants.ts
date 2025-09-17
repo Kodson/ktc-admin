@@ -1,3 +1,4 @@
+// Correct BASE_URL declaration
 // Enhanced constants specific to ProductSharing component
 export const FUEL_TYPES = [
   { value: 'PMS', label: 'PMS' },
@@ -68,15 +69,28 @@ const getCurrentDateTimeLocal = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+// Type augmentation for ImportMeta to include 'env'
+interface ImportMetaEnv {
+  VITE_API_BASE_URL?: string;
+}
+
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
 // API endpoints
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api';
+
 export const API_ENDPOINTS = {
-  tanks: 'http://localhost:8081/api/tanks',
-  supply: 'http://localhost:8081/api/supply', 
-  prices: 'http://localhost:8081/api/prices',
-  bulkPriceUpdate: 'http://localhost:8081/api/price-updates',
-  health: 'http://localhost:8081/api/health',
-  approve: 'http://localhost:8081/api/supply/approve',
-  decline: 'http://localhost:8081/api/supply/decline'
+  tanks: `${BASE_URL}/tanks`,
+  supply: `${BASE_URL}/supply`,
+  prices: `${BASE_URL}/prices`,
+  bulkPriceUpdate: `${BASE_URL}/price-updates`,
+  health: `${BASE_URL}/health`,
+  approve: `${BASE_URL}/supply/approve`,
+  decline: `${BASE_URL}/supply/decline`
 } as const;
 
 /**

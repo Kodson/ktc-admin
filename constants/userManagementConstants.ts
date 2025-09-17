@@ -1,8 +1,16 @@
 // User Management Constants for KTC Energy
+interface ImportMetaEnv {
+  VITE_API_BASE_URL?: string;
+}
 
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 // API Configuration
 export const USER_MANAGEMENT_API = {
-  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',
+  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL), //|| 'http://localhost:8081/api',
   
   ENDPOINTS: {
     USERS: '/user/list',

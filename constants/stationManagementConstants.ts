@@ -1,8 +1,16 @@
 // Station Management Constants for KTC Energy - Enhanced with User Authentication
+interface ImportMetaEnv {
+  VITE_API_BASE_URL?: string;
+}
 
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 // API Configuration
 export const STATION_MANAGEMENT_API = {
-  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',
+  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL), //|| 'http://localhost:8081/api',
   
   ENDPOINTS: {
     STATIONS: '/stations',
@@ -47,7 +55,16 @@ export const GHANA_REGIONS = [
       'Dansoman', 'Osu', 'Labone', 'Cantonments', 'Airport Residential Area',
       'Spintex', 'Achimota', 'Dome', 'Ga East', 'Weija', 'Gbawe', 'Ablekuma',
       'Odorkor', 'Darkuman', 'Sowutuom', 'Pokuase', 'Amasaman', 'Nsawam','Kpone',
-      'Ashaiman'
+      'Ashaiman','Oyibi','Bortianor','Mallam','Haatso','Ashaley Botwe','Ofankor','Dzorwulu',
+      'East Legon','West Legon','North Legon','South Legon','Kaneshie','Korle Gonno',
+      'Chorkor','James Town','Ussher Town','La','Nungua Estates','Teshie-Nungua Estates',
+      'Tema Newtown','Community 1','Community 2','Community 3','Community 4','Community 5',
+      'Community 6','Community 7','Community 8','Community 9','Community 10','Sakumono',
+      'Ashaiman Estates','Tema West','Tema East','Tema Central','Tema Industrial Area',
+      'Tema Harbour', 'Tema Community 11', 'Tema Community 12', 'Tema Community 13', 'Tema Community 14', 'Tema Community 15',
+      'Tema Community 16', 'Tema Community 17', 'Tema Community 18', 'Tema Community 19', 'Tema Community 20',
+      'Tema Community 21', 'Tema Community 22', 'Tema Community 23', 'Tema Community 24', 'Tema Community 25',
+      'Oyibi','Malejor'
     ]
   },
   {
@@ -57,7 +74,11 @@ export const GHANA_REGIONS = [
       'Suame', 'Bantama', 'Tafo', 'Pankrono', 'Kwadaso', 'Asokore Mampong',
       'Juaben', 'Agogo', 'Jacobu', 'Fomena', 'Manso Nkwanta', 'Dunkwa',
       'Tepa', 'Kenyase', 'Adansi', 'Manhyia', 'Adum', 'Kejetia', 'Santasi',
-      'Mampongteng Bodede'
+      'Mampongteng Bodede', 'Asafo', 'Nhyiaeso', 'Asawase', 'Atonsu', 'Kwame Nkrumah University of Science and Technology (KNUST)', 'Aboabo',
+      'Asonomaso', 'Bantama', 'Bodwesango', 'Bomso', 'Danyame', 'Fante New Town',
+      'Kotei', 'Kwadaso', 'Moshie Zongo', 'Nhyiaeso', 'Oduom', 'Suame Magazine',
+      'Tafo', 'Zongo Junction', 'Asokwa', 'Asawase', 'Atonsu', 'Ayigya', 'Bantama',
+      'Bodwesango', 'Bomso', 'Danyame', 'Fante New Town', 'Kotei', 'Kwadaso',
     ]
   },
   {
@@ -66,7 +87,8 @@ export const GHANA_REGIONS = [
       'Takoradi', 'Sekondi', 'Tarkwa', 'Axim', 'Elubo', 'Prestea', 'Bogoso',
       'Aboso', 'Nsuta', 'Dunkwa-On-Offin', 'Obuasi', 'Simpa', 'Shama',
       'Agona Nkwanta', 'Dixcove', 'Busua', 'Ahanta West', 'Amenfi West',
-      'Amenfi Central', 'Amenfi East', 'Wassa East', 'Wassa West'
+      'Amenfi Central', 'Amenfi East', 'Wassa East', 'Wassa West',
+      'Ellembelle', 'Jomoro', 'Nzema East', 'Nzema West', 'Mpohor', 'Bibiani',
     ]
   },
   {
@@ -75,7 +97,10 @@ export const GHANA_REGIONS = [
       'Cape Coast', 'Elmina', 'Winneba', 'Dunkwa', 'Agona Swedru', 'Ajumako',
       'Assin Fosu', 'Komenda', 'Saltpond', 'Anomabu', 'Mankessim', 'Abura',
       'Asebu', 'Gomoa Buduburam', 'Apam', 'Mumford', 'Fetteh', 'Biriwa',
-      'Twifo Praso', 'Nyakrom', 'Diaso', 'Hemang Lower Denkyira'
+      'Twifo Praso', 'Nyakrom', 'Diaso', 'Hemang Lower Denkyira',
+      'Upper Denkyira', 'Cape Coast University', 'Korshie', 'Pedu', 'Atonsu',
+      'Abakrampa', 'Esiam', 'Abeadze Dominase', 'Bawjiase', 'Assin Manso',
+
     ]
   },
   {
@@ -84,7 +109,9 @@ export const GHANA_REGIONS = [
       'Koforidua', 'Akosombo', 'Akyem Oda', 'Nkawkaw', 'Mpraeso', 'Begoro',
       'Somanya', 'Aburi', 'Nsawam', 'Suhum', 'Kibi', 'Asamankese', 'Akropong',
       'Kpong', 'Atimpoku', 'New Tafo', 'Kukurantumi', 'Anyinam', 'Bunso',
-      'Akwatia', 'Afosu', 'Kwahu Tafo', 'Nkronua', 'Oyoko'
+      'Akwatia', 'Afosu', 'Kwahu Tafo', 'Nkronua', 'Oyoko',
+      'Adeiso', 'Aseseeso', 'Dawu', 'Osiem', 'Obo', 'Adukrom', 'Kwahu Praso'
+
     ]
   },
   {
@@ -92,7 +119,10 @@ export const GHANA_REGIONS = [
     cities: [
       'Tamale', 'Yendi', 'Salaga', 'Bimbilla', 'Walewale', 'Savelugu',
       'Gushegu', 'Karaga', 'Tolon', 'Kpandai', 'Zabzugu', 'Tatale',
-      'Chereponi', 'Wulensi', 'Kumbungu', 'Sagnarigu', 'Mion'
+      'Chereponi', 'Wulensi', 'Kumbungu', 'Sagnarigu', 'Mion',
+      'Nanton', 'Gushiegu', 'Gambaga', 'Nalerigu', 'Daboya', 'Kpandae',
+      'Wulensi', 'Chereponi', 'Yendi', 'Savelugu', 'Tolon', 'Kumbungu'
+
     ]
   },
   {
@@ -101,7 +131,10 @@ export const GHANA_REGIONS = [
       'Ho', 'Hohoe', 'Keta', 'Aflao', 'Denu', 'Akatsi', 'Kpando',
       'Dzodze', 'Sogakope', 'Anloga', 'Dzita', 'Weta', 'Agbozume',
       'Dabala', 'Adidome', 'Battor', 'Mepe', 'Agortime Ziope',
-      'Ve Golokuati', 'Peki', 'Jasikan', 'Kadjebi', 'Nkwanta'
+      'Ve Golokuati', 'Peki', 'Jasikan', 'Kadjebi', 'Nkwanta',
+      'Nkonya', 'Tafi Atome', 'Tafi Abuipe', 'Lolobi', 'Gbi Kpeme',
+      'Gbi Baatome', 'Gbi Dzigbe', 'Gbi Gbedome', 'Gbi Kpeme'
+
     ]
   },
   {
@@ -109,7 +142,9 @@ export const GHANA_REGIONS = [
     cities: [
       'Bolgatanga', 'Navrongo', 'Bawku', 'Zebilla', 'Paga', 'Garu',
       'Tempane', 'Binduri', 'Pusiga', 'Builsa North', 'Builsa South',
-      'Kassena Nankana West', 'Kassena Nankana East', 'Talensi'
+      'Kassena Nankana West', 'Kassena Nankana East', 'Talensi',
+      'Nabdam', 'Bongo', 'Sandema', 'Fumbisi', 'Chuchuliga', 'Wakii'
+
     ]
   },
   {
@@ -167,7 +202,9 @@ export const GHANA_REGIONS = [
     region: 'Oti',
     cities: [
       'Dambai', 'Nkwanta', 'Kadjebi', 'Jasikan', 'Kpassa',
-      'Chinderi', 'Worawora', 'Bowiri', 'Likpe Todome'
+      'Chinderi', 'Worawora', 'Bowiri', 'Likpe Todome',
+      'Nkonya Ahenkro', 'Nkonya Tepo', 'Nkonya Ntumda',
+      'Abotuase'
     ]
   }
 ];

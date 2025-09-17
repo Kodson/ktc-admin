@@ -1,7 +1,17 @@
+// Type augmentation for ImportMeta to include 'env'
+interface ImportMetaEnv {
+  VITE_API_BASE_URL?: string;
+}
+
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 // API Endpoints for Price Approval
 export const PRICE_APPROVAL_API = {
   // Base URL - can be configured via environment variables with fallback
-  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',
+  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL), //|| 'http://localhost:8081/api',
   
   // Price Change endpoints
   ENDPOINTS: {

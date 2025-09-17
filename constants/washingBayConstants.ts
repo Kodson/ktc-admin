@@ -1,8 +1,16 @@
 // Washing Bay Management Constants for KTC Energy - Washing Bay Operations and Financial Tracking
+interface ImportMetaEnv {
+  VITE_API_BASE_URL?: string;
+}
 
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 // API Configuration
 export const WASHING_BAY_API = {
-  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8080/api',
+  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL), //|| 'http://localhost:8081/api',
   
   ENDPOINTS: {
     ENTRIES: '/washing-bay/entries/:stationId',
