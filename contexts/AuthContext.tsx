@@ -12,7 +12,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API base URL
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'https://ktc-backend-advy.onrender.com/api'; //http://localhost:8081/api
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
