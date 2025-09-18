@@ -81,8 +81,7 @@ declare global {
 }
 
 // API endpoints
-const BASE_URL = 'https://ktc-backend-advy.onrender.com/api'//(typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
-
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api';
 export const API_ENDPOINTS = {
   tanks: `${BASE_URL}/tanks`,
   supply: `${BASE_URL}/supply`,

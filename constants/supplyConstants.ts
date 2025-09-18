@@ -10,8 +10,7 @@ declare global {
 }
 // API Configuration
 export const SUPPLY_API = {
-  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL), //|| 'http://localhost:8081/api',
-  
+  BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',  
   ENDPOINTS: {
     PRODUCT_SHARING_SUPPLIES: '/supply',//product-sharing/:stationId
     CONFIRM_SUPPLY_RECEIPT: '/supply/confirm/:id',
