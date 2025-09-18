@@ -29,8 +29,8 @@ export function Login() {
     
     const credentials = {
       super_admin: { username: 'I.T', password: '0040105715@Icon' },
-      admin: { username: 'admin', password: 'password123' },
-      station_manager: { username: 'manager', password: 'password123' }
+      admin: { username: 'FAM', password: 'admin123' },
+      station_manager: { username: 'Mr Amoah', password: 'Amoah@2025' }
     };
 
     try {
