@@ -13,17 +13,17 @@ export const WASHING_BAY_API = {
   BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',
   
   ENDPOINTS: {
-    ENTRIES: '/washing-bay/entries/:stationId',
-    CREATE_ENTRY: '/washing-bay/entries',
-    UPDATE_ENTRY: '/washing-bay/entries/:id',
-    DELETE_ENTRY: '/washing-bay/entries/:id',
-    STATISTICS: '/washing-bay/statistics/:stationId',
-    ANALYSIS: '/washing-bay/analysis/:stationId',
-    CHART_DATA: '/washing-bay/chart-data/:stationId',
-    SERVICE_PRICING: '/washing-bay/pricing/:stationId',
-    EQUIPMENT: '/washing-bay/equipment/:stationId',
-    STAFF: '/washing-bay/staff/:stationId',
-    EXPORT: '/washing-bay/export/:stationId',
+    ENTRIES: '/washingBay/station/:stationId',
+    CREATE_ENTRY: '/washingBay',
+    UPDATE_ENTRY: '/washingBay/entries/:id',
+    DELETE_ENTRY: '/washingBay/entries/:id',
+    STATISTICS: '/washingBay/statistics/:stationId',
+    ANALYSIS: '/washingBay/analysis/:stationId',
+    CHART_DATA: '/washingBay/chart-data/:stationId',
+    SERVICE_PRICING: '/washingBay/pricing/:stationId',
+    EQUIPMENT: '/washingBay/equipment/:stationId',
+    STAFF: '/washingBay/staff/:stationId',
+    EXPORT: '/washingBay/export/:stationId',
     HEALTH_CHECK: '/health'
   }
 };

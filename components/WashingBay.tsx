@@ -30,17 +30,17 @@ import { useWashingBayManagement } from '../hooks/useWashingBayManagement';
 
 // Initial form data
 const initialEntryForm = {
-  date: '',
-  noOfVehicles: '',
-  pricePerVehicle: '100',
-  washingBayCommissionRate: '20',
-  expenses: '',
-  notes: '',
-  totalSale: '',
-  washingBayCommission: '',
-  companyCommission: '',
-  bankDeposit: '',
-  balancing: ''
+  date: '', // Date
+  noOfVehicles: '', // No of Vehicles
+  totalSale: '', // Total Sale (user input)
+  washingBayCommission: '', // Bay Commission (auto)
+  companyCommission: '', // Company Commission (auto)
+  expenses: '', // Expenses
+  bankDeposit: '', // Bank Deposit
+  balancing: '', // Balancing (auto)
+  kodsonStatus: 'pending', // KODSON (status)
+  notes: '', // Notes
+  // Actions are not a form field
 };
 
 export function WashingBay() {
@@ -91,7 +91,21 @@ export function WashingBay() {
   });
 
   const handleFormChange = (field: string, value: string) => {
-    setEntryForm(prev => ({ ...prev, [field]: value }));
+    // Calculate commissions and balancing if relevant fields change
+    let updated = { ...entryForm, [field]: value };
+    // Auto-calculate commissions if totalSale changes
+    if (field === 'totalSale') {
+      const sale = parseFloat(value) || 0;
+      updated.washingBayCommission = sale ? (sale * 0.25).toFixed(2) : '';
+      updated.companyCommission = sale ? (sale * 0.75).toFixed(2) : '';
+    }
+    // Auto-calculate balancing as expenses - bankDeposit if either changes
+    if (field === 'bankDeposit' || field === 'expenses') {
+      const deposit = parseFloat(field === 'bankDeposit' ? value : updated.bankDeposit) || 0;
+      const expenses = parseFloat(field === 'expenses' ? value : updated.expenses) || 0;
+      updated.balancing = (deposit - expenses).toFixed(2);
+    }
+    setEntryForm(updated);
   };
 
   const handleAddEntry = async () => {
@@ -127,21 +141,20 @@ export function WashingBay() {
     setEntryForm({
       date: entry.date,
       noOfVehicles: entry.noOfVehicles?.toString() ?? '',
-      pricePerVehicle: entry.pricePerVehicle?.toString() ?? '',
-      washingBayCommissionRate: entry.washingBayCommissionRate?.toString() ?? '',
-      expenses: entry.expenses?.toString() ?? '',
-      notes: entry.notes || '',
       totalSale: entry.totalSale?.toString() ?? '',
       washingBayCommission: entry.washingBayCommission?.toString() ?? '',
       companyCommission: entry.companyCommission?.toString() ?? '',
+      expenses: entry.expenses?.toString() ?? '',
       bankDeposit: entry.bankDeposit?.toString() ?? '',
-      balancing: entry.balancing?.toString() ?? ''
+      balancing: entry.balancing?.toString() ?? '',
+      kodsonStatus: entry.kodsonStatus || 'pending',
+      notes: entry.notes || ''
     });
     setIsEditEntryOpen(true);
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || '').toLowerCase()) {
       case 'complete':
         return 'bg-green-100 text-green-800';
       case 'pending':
@@ -511,22 +524,12 @@ export function WashingBay() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Price per Vehicle (€)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={entryForm.pricePerVehicle}
-                      onChange={(e) => handleFormChange('pricePerVehicle', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Total Sale (Auto-calculated)</Label>
+                    <Label>Total Sale (GHS)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={entryForm.totalSale}
-                      readOnly
-                      className="bg-muted text-muted-foreground"
+                      onChange={(e) => handleFormChange('totalSale', e.target.value)}
                     />
                   </div>
                 </div>
@@ -541,16 +544,7 @@ export function WashingBay() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Bay Commission Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={entryForm.washingBayCommissionRate}
-                      onChange={(e) => handleFormChange('washingBayCommissionRate', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Bay Commission (Auto-calculated)</Label>
+                    <Label>Bay Commission (25%)</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -560,7 +554,7 @@ export function WashingBay() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Company Commission (Auto-calculated)</Label>
+                    <Label>Company Commission (75%)</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -581,7 +575,7 @@ export function WashingBay() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Expenses (€)</Label>
+                    <Label>Expenses (GHS)</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -591,13 +585,12 @@ export function WashingBay() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Bank Deposit (Auto-calculated)</Label>
+                    <Label>Bank Deposit</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={entryForm.bankDeposit}
-                      readOnly
-                      className="bg-muted text-muted-foreground"
+                      onChange={(e) => handleFormChange('bankDeposit', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -683,15 +676,15 @@ export function WashingBay() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Sale</p>
-                      <p className="font-medium">€{selectedEntry.totalSale.toLocaleString()}</p>
+                      <p className="font-medium">₵{selectedEntry.totalSale.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Bay Commission</p>
-                      <p className="font-medium text-purple-600">€{selectedEntry.washingBayCommission.toLocaleString()}</p>
+                      <p className="font-medium text-purple-600">₵{selectedEntry.washingBayCommission.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Company Commission</p>
-                      <p className="font-medium">€{selectedEntry.companyCommission.toLocaleString()}</p>
+                      <p className="font-medium">₵{selectedEntry.companyCommission.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
@@ -712,19 +705,19 @@ export function WashingBay() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Expenses</p>
-                      <p className="font-medium">€{selectedEntry.expenses.toLocaleString()}</p>
+                      <p className="font-medium">₵{selectedEntry.expenses.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Bank Deposit</p>
-                      <p className="font-medium text-orange-600">€{selectedEntry.bankDeposit.toLocaleString()}</p>
+                      <p className="font-medium text-orange-600">₵{selectedEntry.bankDeposit.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Balancing</p>
-                      <p className="font-medium">€{selectedEntry.balancing.toLocaleString()}</p>
+                      <p className="font-medium">₵{selectedEntry.balancing.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Avg. Price/Vehicle</p>
-                      <p className="font-medium">€{(selectedEntry.totalSale / selectedEntry.noOfVehicles).toFixed(2)}</p>
+                      <p className="font-medium">₵{(selectedEntry.totalSale / selectedEntry.noOfVehicles).toFixed(2)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -794,15 +787,7 @@ export function WashingBay() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Price per Vehicle (€)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={entryForm.pricePerVehicle}
-                      onChange={(e) => handleFormChange('pricePerVehicle', e.target.value)}
-                    />
-                  </div>
+                  {/* Removed Price per Vehicle field as per new requirements */}
                   <div className="space-y-2">
                     <Label>Total Sale (Auto-calculated)</Label>
                     <Input
@@ -824,15 +809,7 @@ export function WashingBay() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Bay Commission Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={entryForm.washingBayCommissionRate}
-                      onChange={(e) => handleFormChange('washingBayCommissionRate', e.target.value)}
-                    />
-                  </div>
+                  {/* Removed Bay Commission Rate field as per new requirements */}
                   <div className="space-y-2">
                     <Label>Bay Commission (Auto-calculated)</Label>
                     <Input
@@ -865,7 +842,7 @@ export function WashingBay() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Expenses (€)</Label>
+                    <Label>Expenses (₵)</Label>
                     <Input
                       type="number"
                       step="0.01"

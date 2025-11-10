@@ -2,35 +2,42 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-//import { Input } from './ui/input';
+import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-//import { Separator } from './ui/separator';
+import { Separator } from './ui/separator';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { WeeklyReport } from './WeeklyReport';
+import { WeeklySalesAnalysis } from './WeeklySalesAnalysis';
+import { EndOfMonthReport } from './EndOfMonthReport';
+import { AnnualReport } from './AnnualReport';
+import { ShareModal } from './ShareModal';
 import { 
   FileText,
   Download,
- // Calendar,
+  Calendar,
   TrendingUp,
   DollarSign,
   BarChart3,
-  //PieChart,
+  PieChart,
   Activity,
   Target,
-  //ArrowUpDown,
+  ArrowUpDown,
   Filter,
   RefreshCw,
   Printer,
-  //Mail,
+  Mail,
   Share2,
   Car,
   Fuel,
   Droplets,
-  //Zap,
-  //Building,
-  //Users,
-  //Clock,
-  //AlertTriangle
+  Zap,
+  Building,
+  Users,
+  Clock,
+  AlertTriangle,
+  ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, AreaChart, Area, Pie } from 'recharts';
 
@@ -116,51 +123,371 @@ const expenseBreakdown = [
 ];
 
 const topPerformers = [
-  { metric: 'Highest Daily Sales', value: '₵25,500', date: 'Dec 7, 2024', performance: '+15%' },
+  { metric: 'Highest Daily Sales', value: '₵25,500.00', date: 'Dec 7, 2024', performance: '+15%' },
   { metric: 'Peak Vehicle Count', value: '45 vehicles', date: 'Dec 7, 2024', performance: '+12%' },
   { metric: 'Best Profit Margin', value: '24.8%', date: 'Dec 5, 2024', performance: '+3.2%' },
-  { metric: 'Lowest Expenses', value: '₵17,200', date: 'Dec 3, 2024', performance: '-8%' }
+  { metric: 'Lowest Expenses', value: '₵17,200.00', date: 'Dec 3, 2024', performance: '-8%' }
 ];
 
 export function Reporting() {
-  const [activeTab, setActiveTab] = useState('weekly');
+  const [activeTab, setActiveTab] = useState('weekly-operations');
   const [selectedPeriod, setSelectedPeriod] = useState('current');
-  //const [reportType, setReportType] = useState('summary');
+  const [reportType, setReportType] = useState('summary');
 
   const getCurrentKPI = () => {
     switch (activeTab) {
-      case 'weekly': return kpiData.weekly;
+      case 'weekly-operations': return kpiData.weekly;
+      case 'weekly-sales': return kpiData.weekly;
       case 'monthly': return kpiData.monthly;
       case 'annual': return kpiData.annual;
       default: return kpiData.weekly;
     }
   };
-/*
+
   const getCurrentData = () => {
     switch (activeTab) {
-      case 'weekly': return weeklyData;
+      case 'weekly-operations': return weeklyData;
       case 'weekly-sales': return weeklyData;
       case 'monthly': return monthlyData;
       case 'annual': return annualData;
       default: return weeklyData;
     }
   };
-*/
+
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'GHS',
-      minimumFractionDigits: 0
-    }).format(amount);
+    return `₵${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(1)}%`;
   };
 
-  const handleExport = (format: string) => {
-    console.log(`Exporting ${activeTab} report as ${format}`);
-    // Implementation for export functionality
+  const handleExport = async (format: string) => {
+    if (format === 'pdf') {
+      const { PDFExportService, createExportData } = await import('../utils/pdfExport');
+      
+      try {
+        // Get current KPI data
+        const currentKPI = getCurrentKPI();
+        
+        // Prepare table data based on active tab
+        let additionalData: any = {};
+        
+        if (activeTab === 'weekly-operations' || activeTab === 'weekly-sales') {
+          // Weekly data
+          additionalData.tableData = [{
+            title: 'Weekly Performance Breakdown',
+            headers: ['Day', 'Sales', 'Transactions', 'Vehicles', 'Revenue', 'Avg/Vehicle'],
+            rows: weeklyData.map(day => [
+              day.day,
+              day.sales,
+              day.transactions,
+              day.vehicles,
+              day.revenue,
+              Math.round(day.revenue / day.vehicles * 100) / 100
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Week Total Sales', value: currentKPI.totalSales },
+            { label: 'Week Total Profit', value: currentKPI.totalProfit },
+            { label: 'Week Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Transaction Value', value: currentKPI.avgTransactionValue },
+            { label: 'Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Operational Efficiency', value: `${currentKPI.operationalEfficiency}%`, subValue: 'efficiency score' }
+          ];
+        } else if (activeTab === 'monthly') {
+          // Monthly data
+          additionalData.tableData = [{
+            title: 'Monthly Performance by Week',
+            headers: ['Week', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: monthlyData.map(week => [
+              week.week,
+              week.sales,
+              week.profit,
+              week.expenses,
+              week.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Month Total Sales', value: currentKPI.totalSales },
+            { label: 'Month Total Profit', value: currentKPI.totalProfit },
+            { label: 'Month Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Month Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Net Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Growth Rate', value: `${currentKPI.growthRate}%`, subValue: 'vs previous month' }
+          ];
+        } else if (activeTab === 'annual') {
+          // Annual data
+          additionalData.tableData = [{
+            title: 'Annual Performance by Month',
+            headers: ['Month', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: annualData.map(month => [
+              month.month,
+              month.sales,
+              month.profit,
+              month.expenses,
+              month.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Annual Total Sales', value: currentKPI.totalSales },
+            { label: 'Annual Total Profit', value: currentKPI.totalProfit },
+            { label: 'Annual Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Annual Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Monthly Sales', value: Math.round(currentKPI.totalSales / 12) },
+            { label: 'Year-over-Year Growth', value: `${currentKPI.growthRate}%`, subValue: 'annual growth rate' }
+          ];
+        }
+        
+        // Create export data
+        const exportData = createExportData(
+          'pdf',
+          activeTab,
+          selectedPeriod,
+          currentKPI,
+          additionalData
+        );
+        
+        // Generate PDF
+        const pdfService = new PDFExportService();
+        pdfService.generatePDF(exportData);
+        
+        // Show success message (you can add a toast notification here)
+        console.log('PDF exported successfully');
+        
+      } catch (error) {
+        console.error('Error exporting PDF:', error);
+        // Show error message (you can add a toast notification here)
+      }
+    } else if (format === 'excel') {
+      const { ExcelExportService, createExcelExportData } = await import('../utils/excelExport');
+      
+      try {
+        // Get current KPI data
+        const currentKPI = getCurrentKPI();
+        
+        // Prepare table data based on active tab (reuse same logic as PDF)
+        let additionalData: any = {};
+        
+        if (activeTab === 'weekly-operations' || activeTab === 'weekly-sales') {
+          // Weekly data
+          additionalData.tableData = [{
+            title: 'Weekly Performance Breakdown',
+            headers: ['Day', 'Sales', 'Transactions', 'Vehicles', 'Revenue', 'Avg/Vehicle'],
+            rows: weeklyData.map(day => [
+              day.day,
+              day.sales,
+              day.transactions,
+              day.vehicles,
+              day.revenue,
+              Math.round(day.revenue / day.vehicles * 100) / 100
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Week Total Sales', value: currentKPI.totalSales },
+            { label: 'Week Total Profit', value: currentKPI.totalProfit },
+            { label: 'Week Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Transaction Value', value: currentKPI.avgTransactionValue },
+            { label: 'Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Operational Efficiency', value: `${currentKPI.operationalEfficiency}%`, subValue: 'efficiency score' }
+          ];
+
+          // Add chart data for weekly reports
+          additionalData.chartData = weeklyData.map(day => ({
+            Day: day.day,
+            Sales: day.sales,
+            Revenue: day.revenue,
+            Vehicles: day.vehicles,
+            Transactions: day.transactions
+          }));
+        } else if (activeTab === 'monthly') {
+          // Monthly data
+          additionalData.tableData = [{
+            title: 'Monthly Performance by Week',
+            headers: ['Week', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: monthlyData.map(week => [
+              week.week,
+              week.sales,
+              week.profit,
+              week.expenses,
+              week.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Month Total Sales', value: currentKPI.totalSales },
+            { label: 'Month Total Profit', value: currentKPI.totalProfit },
+            { label: 'Month Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Month Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Net Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Growth Rate', value: `${currentKPI.growthRate}%`, subValue: 'vs previous month' }
+          ];
+
+          // Add chart data for monthly reports
+          additionalData.chartData = monthlyData.map(week => ({
+            Week: week.week,
+            Sales: week.sales,
+            Profit: week.profit,
+            Expenses: week.expenses,
+            Vehicles: week.vehicles
+          }));
+        } else if (activeTab === 'annual') {
+          // Annual data
+          additionalData.tableData = [{
+            title: 'Annual Performance by Month',
+            headers: ['Month', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: annualData.map(month => [
+              month.month,
+              month.sales,
+              month.profit,
+              month.expenses,
+              month.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Annual Total Sales', value: currentKPI.totalSales },
+            { label: 'Annual Total Profit', value: currentKPI.totalProfit },
+            { label: 'Annual Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Annual Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Monthly Sales', value: Math.round(currentKPI.totalSales / 12) },
+            { label: 'Year-over-Year Growth', value: `${currentKPI.growthRate}%`, subValue: 'annual growth rate' }
+          ];
+
+          // Add chart data for annual reports
+          additionalData.chartData = annualData.map(month => ({
+            Month: month.month,
+            Sales: month.sales,
+            Profit: month.profit,
+            Expenses: month.expenses,
+            Vehicles: month.vehicles
+          }));
+        }
+        
+        // Create export data
+        const exportData = createExcelExportData(
+          'excel',
+          activeTab,
+          selectedPeriod,
+          currentKPI,
+          additionalData
+        );
+        
+        // Generate Excel with charts
+        const excelService = new ExcelExportService();
+        excelService.generateExcelWithCharts(exportData);
+        
+        console.log('Excel exported successfully');
+        
+      } catch (error) {
+        console.error('Error exporting Excel:', error);
+        // Show error message (you can add a toast notification here)
+      }
+    } else if (format === 'print') {
+      const { PrintService, createPrintData } = await import('../utils/printService');
+      
+      try {
+        // Get current KPI data
+        const currentKPI = getCurrentKPI();
+        
+        // Prepare table data based on active tab (reuse same logic as PDF/Excel)
+        let additionalData: any = {};
+        
+        if (activeTab === 'weekly-operations' || activeTab === 'weekly-sales') {
+          // Weekly data
+          additionalData.tableData = [{
+            title: 'Weekly Performance Breakdown',
+            headers: ['Day', 'Sales', 'Transactions', 'Vehicles', 'Revenue', 'Avg/Vehicle'],
+            rows: weeklyData.map(day => [
+              day.day,
+              day.sales,
+              day.transactions,
+              day.vehicles,
+              day.revenue,
+              Math.round(day.revenue / day.vehicles * 100) / 100
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Week Total Sales', value: currentKPI.totalSales },
+            { label: 'Week Total Profit', value: currentKPI.totalProfit },
+            { label: 'Week Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Transaction Value', value: currentKPI.avgTransactionValue },
+            { label: 'Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Operational Efficiency', value: `${currentKPI.operationalEfficiency}%`, subValue: 'efficiency score' }
+          ];
+        } else if (activeTab === 'monthly') {
+          // Monthly data
+          additionalData.tableData = [{
+            title: 'Monthly Performance by Week',
+            headers: ['Week', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: monthlyData.map(week => [
+              week.week,
+              week.sales,
+              week.profit,
+              week.expenses,
+              week.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Month Total Sales', value: currentKPI.totalSales },
+            { label: 'Month Total Profit', value: currentKPI.totalProfit },
+            { label: 'Month Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Month Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Net Profit Margin', value: `${currentKPI.profitMargin}%`, subValue: 'of total sales' },
+            { label: 'Growth Rate', value: `${currentKPI.growthRate}%`, subValue: 'vs previous month' }
+          ];
+        } else if (activeTab === 'annual') {
+          // Annual data
+          additionalData.tableData = [{
+            title: 'Annual Performance by Month',
+            headers: ['Month', 'Sales', 'Profit', 'Expenses', 'Vehicles'],
+            rows: annualData.map(month => [
+              month.month,
+              month.sales,
+              month.profit,
+              month.expenses,
+              month.vehicles
+            ])
+          }];
+          
+          additionalData.summaryData = [
+            { label: 'Annual Total Sales', value: currentKPI.totalSales },
+            { label: 'Annual Total Profit', value: currentKPI.totalProfit },
+            { label: 'Annual Total Expenses', value: currentKPI.totalExpenses },
+            { label: 'Annual Total Vehicles', value: currentKPI.totalVehicles, subValue: 'vehicles served' },
+            { label: 'Average Monthly Sales', value: Math.round(currentKPI.totalSales / 12) },
+            { label: 'Year-over-Year Growth', value: `${currentKPI.growthRate}%`, subValue: 'annual growth rate' }
+          ];
+        }
+        
+        // Create print data
+        const printData = createPrintData(
+          'print',
+          activeTab,
+          selectedPeriod,
+          currentKPI,
+          additionalData
+        );
+        
+        // Generate print document
+        const printService = new PrintService();
+        printService.printReport(printData);
+        
+        console.log('Print dialog opened successfully');
+        
+      } catch (error) {
+        console.error('Error opening print dialog:', error);
+        // Show error message (you can add a toast notification here)
+      }
+    } else {
+      console.log(`Exporting ${activeTab} report as ${format}`);
+    }
   };
 
   return (
@@ -191,6 +518,40 @@ export function Reporting() {
             <Filter className="h-4 w-4" />
             <span>Filter</span>
           </Button>
+          
+          {/* Export/Share Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Download className="h-4 w-4" />
+                <span>Export</span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Export as PDF</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Export as Excel</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('print')}>
+                <Printer className="mr-2 h-4 w-4" />
+                <span>Print Report</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Share Options</DropdownMenuLabel>
+              <ShareModal reportType={activeTab} reportData={getCurrentKPI()}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  <span>Share Report</span>
+                </DropdownMenuItem>
+              </ShareModal>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -249,562 +610,33 @@ export function Reporting() {
 
       {/* Tabbed Reports */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-          <TabsTrigger value="weekly">Weekly Report</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsTrigger value="weekly-operations">Weekly Operations</TabsTrigger>
           <TabsTrigger value="weekly-sales">Weekly Sales Analysis</TabsTrigger>
           <TabsTrigger value="monthly">End of Month Report</TabsTrigger>
           <TabsTrigger value="annual">Annual Report</TabsTrigger>
         </TabsList>
 
-        {/* Weekly Report */}
-        <TabsContent value="weekly" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-medium">Weekly Performance Report</h2>
-              <p className="text-sm text-muted-foreground">Dec 2-8, 2024 • 7 days analysis</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-                <Download className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Print
-              </Button>
-              <Button variant="outline" size="sm">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Daily Sales Trend */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle>Daily Sales Performance</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [formatCurrency(value as number), 'Sales']} />
-                    <Bar dataKey="sales" fill="#000000" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Vehicle Count Trend */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Car className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle>Vehicle Traffic Analysis</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="vehicles" stroke="#666666" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Weekly Summary Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Day</TableHead>
-                    <TableHead className="text-right">Sales</TableHead>
-                    <TableHead className="text-right">Transactions</TableHead>
-                    <TableHead className="text-right">Vehicles</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Avg/Vehicle</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weeklyData.map((day) => (
-                    <TableRow key={day.day}>
-                      <TableCell className="font-medium">{day.day}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(day.sales)}</TableCell>
-                      <TableCell className="text-right">{day.transactions}</TableCell>
-                      <TableCell className="text-right">{day.vehicles}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(day.revenue)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(day.revenue / day.vehicles)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Top Performers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Highlights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {topPerformers.map((performer, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{performer.metric}</p>
-                      <p className="text-sm text-muted-foreground">{performer.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{performer.value}</p>
-                      <p className="text-sm text-green-600">{performer.performance}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Weekly Operations Report */}
+        <TabsContent value="weekly-operations" className="space-y-6">
+          <WeeklyReport />
         </TabsContent>
+
+
 
         {/* Weekly Sales Analysis */}
         <TabsContent value="weekly-sales" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-medium">Weekly Sales Analysis</h2>
-              <p className="text-sm text-muted-foreground">Detailed sales performance and trends</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-                <Download className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Sales vs Revenue */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Sales vs Revenue Correlation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <AreaChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="sales" stackId="1" stroke="#000000" fill="#000000" fillOpacity={0.6} />
-                    <Area type="monotone" dataKey="revenue" stackId="2" stroke="#666666" fill="#666666" fillOpacity={0.4} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Product Mix */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue by Product Mix</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={productMix}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {productMix.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {productMix.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                      <span className="text-sm">{item.name}: {item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sales Performance Metrics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Performance Metrics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(125300)}</div>
-                  <p className="text-sm text-muted-foreground">Total Sales</p>
-                  <Badge className="mt-2 bg-green-100 text-green-800">+8.5%</Badge>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">342</div>
-                  <p className="text-sm text-muted-foreground">Total Transactions</p>
-                  <Badge className="mt-2 bg-blue-100 text-blue-800">+12.3%</Badge>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{formatCurrency(366.37)}</div>
-                  <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                  <Badge className="mt-2 bg-purple-100 text-purple-800">+3.2%</Badge>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">22.7%</div>
-                  <p className="text-sm text-muted-foreground">Profit Margin</p>
-                  <Badge className="mt-2 bg-orange-100 text-orange-800">+1.8%</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <WeeklySalesAnalysis />
         </TabsContent>
 
         {/* End of Month Report */}
         <TabsContent value="monthly" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-medium">End of Month Report</h2>
-              <p className="text-sm text-muted-foreground">November 2024 • Complete monthly analysis</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-                <Download className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Performance */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Performance Trend</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [formatCurrency(value as number), 'Amount']} />
-                    <Bar dataKey="sales" fill="#000000" />
-                    <Bar dataKey="profit" fill="#666666" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Expense Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Expense Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {expenseBreakdown.map((expense, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: expense.color }}></div>
-                        <span className="font-medium">{expense.category}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold">{formatCurrency(expense.amount)}</div>
-                        <div className="text-sm text-muted-foreground">{expense.percentage}%</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Monthly Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Financial Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(520000)}</p>
-                  <Badge className="bg-green-100 text-green-800">+12.3%</Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total Expenses</p>
-                  <p className="text-2xl font-bold">{formatCurrency(75800)}</p>
-                  <Badge className="bg-red-100 text-red-800">+5.2%</Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Net Profit</p>
-                  <p className="text-2xl font-bold">{formatCurrency(107000)}</p>
-                  <Badge className="bg-blue-100 text-blue-800">+15.7%</Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Profit Margin</p>
-                  <p className="text-2xl font-bold">20.6%</p>
-                  <Badge className="bg-purple-100 text-purple-800">+2.1%</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Operational Metrics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Operational Performance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 border rounded-lg">
-                  <Fuel className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <div className="text-2xl font-bold">1,065</div>
-                  <p className="text-sm text-muted-foreground">Total Vehicles Served</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <Droplets className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <div className="text-2xl font-bold">245</div>
-                  <p className="text-sm text-muted-foreground">Washing Bay Services</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <Activity className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <div className="text-2xl font-bold">91.8%</div>
-                  <p className="text-sm text-muted-foreground">Operational Efficiency</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <EndOfMonthReport />
         </TabsContent>
 
         {/* Annual Report */}
         <TabsContent value="annual" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-medium">Cumulative Annual Report</h2>
-              <p className="text-sm text-muted-foreground">2024 Year-end comprehensive analysis</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-                <Download className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-            </div>
-          </div>
-
-          {/* Annual Performance Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Annual Performance Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={annualData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [formatCurrency(value as number), 'Amount']} />
-                  <Area type="monotone" dataKey="sales" stackId="1" stroke="#000000" fill="#000000" fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="profit" stackId="2" stroke="#666666" fill="#666666" fillOpacity={0.4} />
-                  <Area type="monotone" dataKey="expenses" stackId="3" stroke="#999999" fill="#999999" fillOpacity={0.2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Annual KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Annual Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(5810000)}</div>
-                <p className="text-xs text-muted-foreground">+15.7% YoY growth</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Annual Profit</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{formatCurrency(1232000)}</div>
-                <p className="text-xs text-muted-foreground">21.2% profit margin</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Vehicles</CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">15,630</div>
-                <p className="text-xs text-muted-foreground">1,302 avg/month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Efficiency Score</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">93.5%</div>
-                <p className="text-xs text-muted-foreground">Operational excellence</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quarterly Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quarterly Performance Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Quarter</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Profit</TableHead>
-                    <TableHead className="text-right">Expenses</TableHead>
-                    <TableHead className="text-right">Vehicles</TableHead>
-                    <TableHead className="text-right">Growth</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Q1 2024</TableCell>
-                    <TableCell className="text-right">{formatCurrency(1350000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(285000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(205000)}</TableCell>
-                    <TableCell className="text-right">3,650</TableCell>
-                    <TableCell className="text-right text-green-600">+12.5%</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Q2 2024</TableCell>
-                    <TableCell className="text-right">{formatCurrency(1470000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(311000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(218000)}</TableCell>
-                    <TableCell className="text-right">3,950</TableCell>
-                    <TableCell className="text-right text-green-600">+15.2%</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Q3 2024</TableCell>
-                    <TableCell className="text-right">{formatCurrency(1480000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(315000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(210000)}</TableCell>
-                    <TableCell className="text-right">3,900</TableCell>
-                    <TableCell className="text-right text-green-600">+18.7%</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Q4 2024</TableCell>
-                    <TableCell className="text-right">{formatCurrency(1510000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(321000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(210000)}</TableCell>
-                    <TableCell className="text-right">4,130</TableCell>
-                    <TableCell className="text-right text-green-600">+16.8%</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Year-end Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>2024 Year-end Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Key Achievements</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      Exceeded annual revenue target by 15.7%
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      Maintained 93.5% operational efficiency
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      Served 15,630 vehicles successfully
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      Achieved 21.2% profit margin
-                    </li>
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="font-medium">Areas for Improvement</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      Optimize Q3 operational efficiency
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      Reduce utility expenses in peak months
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      Expand washing bay services
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      Implement predictive maintenance
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AnnualReport />
         </TabsContent>
       </Tabs>
     </div>

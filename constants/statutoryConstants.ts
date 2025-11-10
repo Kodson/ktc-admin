@@ -13,8 +13,8 @@ export const STATUTORY_API = {
   BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',
   
   ENDPOINTS: {
-    DOCUMENTS: '/statutory/documents/:stationId',
-    CREATE_DOCUMENT: '/statutory/documents',
+    DOCUMENTS: '/statutory/station/:stationId',
+    CREATE_DOCUMENT: '/statutory',
     UPDATE_DOCUMENT: '/statutory/documents/:id',
     DELETE_DOCUMENT: '/statutory/documents/:id',
     RENEW_DOCUMENT: '/statutory/documents/:id/renew',

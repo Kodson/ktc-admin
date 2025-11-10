@@ -430,11 +430,15 @@ export const formatDate = (dateString: string | undefined | null): string => {
     return 'N/A';
   }
   try {
-    return new Date(dateString).toLocaleDateString('en-GH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const dateObj = new Date(dateString);
+    // If valid date, format as '5 Sept 2025'
+    if (!isNaN(dateObj.getTime())) {
+      const day = dateObj.getDate();
+      const month = dateObj.toLocaleString('en-US', { month: 'short' });
+      const year = dateObj.getFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return 'Invalid Date';
   } catch (error) {
     return 'Invalid Date';
   }

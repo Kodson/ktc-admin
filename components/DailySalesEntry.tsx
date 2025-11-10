@@ -53,6 +53,18 @@ export function DailySalesEntry() {
 
   // UI state
   const [showCalculations, setShowCalculations] = useState(false);
+  const [rateInput, setRateInput] = useState(entry.rate?.toString() ?? '');
+  const [closingStockInput, setClosingStockInput] = useState(entry.closingSL?.toLocaleString() ?? '');
+
+  // Sync rateInput with entry.rate changes
+  useEffect(() => {
+    setRateInput(entry.rate?.toString() ?? '');
+  }, [entry.rate]);
+
+  // Sync closingStockInput with entry.closingSL changes
+  useEffect(() => {
+    setClosingStockInput(entry.closingSL?.toLocaleString() ?? '');
+  }, [entry.closingSL]);
 
   // Add debugging effect
   useEffect(() => {
@@ -336,13 +348,38 @@ export function DailySalesEntry() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-medium">Closing Stock (L) *</Label>
                   <Input
-                    type="number"
-                    value={entry.closingSL !== undefined ? entry.closingSL.toString() : ''}
-                    onChange={(e) => handleNumericInput('closingSL', e.target.value)}
-                    placeholder="Enter closing stock"
+                    type="text"
+                    inputMode="numeric"
+                    value={closingStockInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      
+                      // Allow empty, digits, and commas
+                      if (/^[\d,]*$/.test(value)) {
+                        setClosingStockInput(value);
+                        
+                        // Convert to number by removing commas
+                        if (value === '') {
+                          updateEntry('closingSL', 0);
+                        } else {
+                          const numericValue = parseFloat(value.replace(/,/g, ''));
+                          if (!isNaN(numericValue)) {
+                            updateEntry('closingSL', numericValue);
+                          }
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      // Format with commas on blur if it's a number
+                      if (closingStockInput !== '' && !isNaN(parseFloat(closingStockInput.replace(/,/g, '')))) {
+                        const numericValue = parseFloat(closingStockInput.replace(/,/g, ''));
+                        const formatted = numericValue.toLocaleString();
+                        setClosingStockInput(formatted);
+                        updateEntry('closingSL', numericValue);
+                      }
+                    }}
+                    placeholder="Enter closing stock (e.g., 7,000)"
                     className="text-sm sm:text-base font-normal"
-                    min="0"
-                    step="1"
                   />
                 </div>
 
@@ -446,13 +483,37 @@ export function DailySalesEntry() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-medium">Rate per Liter (₵) *</Label>
                   <Input
-                    type="number"
-                    value={entry.rate !== undefined ? entry.rate.toString() : ''}
-                    onChange={(e) => handleNumericInput('rate', e.target.value)}
+                    type="text"
+                    inputMode="decimal"
+                    value={rateInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      
+                      // Allow empty, digits, and a single optional decimal
+                      if (/^\d*\.?\d*$/.test(value)) {
+                        setRateInput(value);
+                        
+                        // Update numeric value only if it's valid and not just "."
+                        if (value === '' || value === '.') {
+                          updateEntry('rate', 0);
+                        } else {
+                          const numericValue = parseFloat(value);
+                          if (!isNaN(numericValue)) {
+                            updateEntry('rate', numericValue);
+                          }
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      // Format to 2 decimal places on blur if it's a number
+                      if (rateInput !== '' && !isNaN(parseFloat(rateInput))) {
+                        const formatted = parseFloat(rateInput).toFixed(2);
+                        setRateInput(formatted);
+                        updateEntry('rate', parseFloat(formatted));
+                      }
+                    }}
                     placeholder="Enter rate"
                     className="text-sm sm:text-base font-normal"
-                    min="0"
-                    step="0.01"
                   />
                   {entry.product && (
                     <p className="text-xs text-blue-600 font-normal">

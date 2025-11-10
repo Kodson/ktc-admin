@@ -297,8 +297,8 @@ export function Utility() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(statistics.thisMonth.amount)}</div>
-            <p className="text-xs text-muted-foreground">{statistics.thisMonth.count} bills this month</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(statistics.thisMonth.amount)}</div> */}
+            {/* <p className="text-xs text-muted-foreground">{statistics.thisMonth.count} bills this month</p> */}
           </CardContent>
         </Card>
 
@@ -308,8 +308,8 @@ export function Utility() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600">{formatCurrency(statistics.pending.amount)}</div>
-            <p className="text-xs text-muted-foreground">{statistics.pending.count} bills awaiting payment</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-orange-600">{formatCurrency(statistics.pending.amount)}</div> */}
+            {/* <p className="text-xs text-muted-foreground">{statistics.pending.count} bills awaiting payment</p> */}
           </CardContent>
         </Card>
 
@@ -319,8 +319,8 @@ export function Utility() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-red-600">{formatCurrency(statistics.overdue.amount)}</div>
-            <p className="text-xs text-muted-foreground">{statistics.overdue.count} bills overdue</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-red-600">{formatCurrency(statistics.overdue.amount)}</div> */}
+            {/* <p className="text-xs text-muted-foreground">{statistics.overdue.count} bills overdue</p> */}
           </CardContent>
         </Card>
 
@@ -330,8 +330,8 @@ export function Utility() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{statistics.budgetStatus.toFixed(1)}%</div>
-            <Progress value={statistics.budgetStatus} className="mt-2" />
+            {/* <div className="text-xl sm:text-2xl font-bold">{statistics.budgetStatus.toFixed(1)}%</div> */}
+            {/* <Progress value={statistics.budgetStatus} className="mt-2" /> */}
           </CardContent>
         </Card>
       </div>
@@ -735,7 +735,7 @@ export function Utility() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Total Amount (€) *</Label>
+                  <Label>Total Amount (GHC) *</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -891,12 +891,12 @@ export function Utility() {
                     <div>
                       <p className="text-sm text-muted-foreground">Rate per Unit</p>
                       <p className="font-medium">
-                        {selectedBill.consumption.rate ? `€${selectedBill.consumption.rate}` : 'N/A'}
+                        {selectedBill.consumption.rate ? `GHC ${selectedBill.consumption.rate}` : 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Amount</p>
-                      <p className="text-lg font-bold">€{selectedBill.amount.toLocaleString()}</p>
+                      <p className="text-lg font-bold">GHC {selectedBill.amount.toLocaleString()}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1071,7 +1071,7 @@ export function Utility() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Total Amount (€) *</Label>
+                  <Label>Total Amount (GHC ) *</Label>
                   <Input
                     type="number"
                     step="0.01"

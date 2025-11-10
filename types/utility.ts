@@ -108,15 +108,24 @@ export interface UtilityFilters {
 
 export interface UtilityResponse {
   success: boolean;
-  data: {
-    bills: UtilityBill[];
-    stats: UtilityStats;
-    budgetData: UtilityBudgetItem[];
-    monthlyData: UtilityChartData[];
-    pieData: UtilityPieData[];
-  };
+  content: UtilityBill[];
+  stats: UtilityStats;
+  budgetData: UtilityBudgetItem[];
+  monthlyData: UtilityChartData[];
+  pieData: UtilityPieData[];
   total: number;
   message?: string;
+  // Pagination fields
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  number?: number;
+  numberOfElements?: number;
+  pageable?: any;
+  size?: number;
+  sort?: any;
+  totalElements?: number;
+  totalPages?: number;
 }
 
 export interface UtilityPaymentResponse {

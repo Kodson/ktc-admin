@@ -39,9 +39,13 @@ export interface WashingBayService {
 export interface CreateWashingBayEntryRequest {
   date: string;
   noOfVehicles: string;
-  pricePerVehicle: string;
-  washingBayCommissionRate: string;
+  totalSale: string;
+  washingBayCommission: string;
+  companyCommission: string;
   expenses: string;
+  bankDeposit: string;
+  balancing: string;
+  kodsonStatus: string;
   notes?: string;
   serviceTypes?: WashingBayService[];
 }
@@ -127,7 +131,7 @@ export interface WashingBayFilters {
 
 export interface WashingBayResponse {
   success: boolean;
-  data: {
+  content: {
     entries: WashingBayEntry[];
     stats: WashingBayStats;
     analysis: WashingBayAnalysis;

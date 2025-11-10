@@ -12,8 +12,8 @@ declare global {
 export const UTILITY_API = {
   BASE_URL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api',  
   ENDPOINTS: {
-    UTILITIES: '/utility/bills/:stationId',
-    CREATE_BILL: '/utility/bills',
+    UTILITIES: '/utility/station/:stationId',
+    CREATE_BILL: '/utility',
     UPDATE_BILL: '/utility/bills/:id',
     DELETE_BILL: '/utility/bills/:id',
     PAY_BILL: '/utility/bills/:id/pay',

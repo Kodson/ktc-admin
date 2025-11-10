@@ -90,6 +90,7 @@ export function Statutory() {
   const [documentForm, setDocumentForm] = useState(initialDocumentForm);
 
   const getStatusColor = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
     switch (status.toLowerCase()) {
       case 'compliant':
         return 'bg-green-100 text-green-800';
@@ -286,8 +287,8 @@ export function Statutory() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-green-600">{statistics.complianceScore}%</div>
-            <Progress value={statistics.complianceScore} className="mt-2" />
+            {/* <div className="text-xl sm:text-2xl font-bold text-green-600">{statistics.complianceScore}%</div> */}
+            {/* <Progress value={statistics.complianceScore} className="mt-2" /> */}
           </CardContent>
         </Card>
 
@@ -297,8 +298,8 @@ export function Statutory() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">{statistics.activeDocuments.count}</div>
-            <p className="text-xs text-muted-foreground">of {statistics.activeDocuments.total} total</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-blue-600">{statistics.activeDocuments.count}</div> */}
+            {/* <p className="text-xs text-muted-foreground">of {statistics.activeDocuments.total} total</p> */}
           </CardContent>
         </Card>
 
@@ -308,8 +309,8 @@ export function Statutory() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600">{statistics.expiringSoon.count}</div>
-            <p className="text-xs text-muted-foreground">within {statistics.expiringSoon.days} days</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-orange-600">{statistics.expiringSoon.count}</div> */}
+            {/* <p className="text-xs text-muted-foreground">within {statistics.expiringSoon.days} days</p> */}
           </CardContent>
         </Card>
 
@@ -319,8 +320,8 @@ export function Statutory() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-red-600">{formatCurrency(statistics.overdueFees.amount)}</div>
-            <p className="text-xs text-muted-foreground">{statistics.overdueFees.count} expired docs</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-red-600">{formatCurrency(statistics.overdueFees.amount)}</div> */}
+            {/* <p className="text-xs text-muted-foreground">{statistics.overdueFees.count} expired docs</p> */}
           </CardContent>
         </Card>
 
@@ -330,8 +331,8 @@ export function Statutory() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-red-600">{statistics.criticalAlerts.count}</div>
-            <p className="text-xs text-muted-foreground">{statistics.criticalAlerts.unread} unread</p>
+            {/* <div className="text-xl sm:text-2xl font-bold text-red-600">{statistics.criticalAlerts.count}</div> */}
+            {/* <p className="text-xs text-muted-foreground">{statistics.criticalAlerts.unread} unread</p> */}
           </CardContent>
         </Card>
       </div>
@@ -482,7 +483,7 @@ export function Statutory() {
                     <SelectContent>
                       <SelectItem value="all">All Payment Status</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="unpaid">Unpaid</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
                     </SelectContent>
                   </Select>
@@ -662,11 +663,16 @@ export function Statutory() {
                         <SelectValue placeholder="Select document type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Business License">Business License</SelectItem>
-                        <SelectItem value="Environmental Permit">Environmental Permit</SelectItem>
-                        <SelectItem value="Fire Safety Certificate">Fire Safety Certificate</SelectItem>
-                        <SelectItem value="Fuel Retail License">Fuel Retail License</SelectItem>
-                        <SelectItem value="Health Permit">Health Permit</SelectItem>
+                        <SelectItem value="EPA CERTIFICATE">EPA CERTIFICATE</SelectItem>
+                        <SelectItem value="NPA CERTIFICATE">NPA CERTIFICATE</SelectItem>
+                        <SelectItem value="GNFS CERTIFICATE">GNFS CERTIFICATE</SelectItem>
+                        <SelectItem value="INSURANCE CERTIFICATE FOR PUBLIC LIABILITY, FACILITY & FIRE">INSURANCE CERTIFICATE</SelectItem>
+                        <SelectItem value="FACTORY INSPECTORATE">FACTORY INSPECTORATE</SelectItem>
+                        <SelectItem value="GSA CERTIFICATE">GSA CERTIFICATE</SelectItem>
+                        <SelectItem value="CALIBRATION CERTIFICATE">CALIBRATION CERTIFICATE</SelectItem>
+                        <SelectItem value="PRESSURE TEST CERTIFICATE">PRESSURE TEST CERTIFICATE</SelectItem>
+                        <SelectItem value="TANK CLEANING CERTIFICATE">TANK CLEANING CERTIFICATE</SelectItem>
+                        <SelectItem value="FIRE TRAINING CERTIFICATE">FIRE TRAINING CERTIFICATE</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -743,7 +749,7 @@ export function Statutory() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Fees (€) *</Label>
+                    <Label>Fees (GHC) *</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -759,9 +765,9 @@ export function Statutory() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="PAID">Paid</SelectItem>
-                        <SelectItem value="OVERDUE">Overdue</SelectItem>
+                        <SelectItem value="Unpaid">Unpaid</SelectItem>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Overdue">Overdue</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1076,9 +1082,9 @@ export function Statutory() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="PAID">Paid</SelectItem>
-                        <SelectItem value="OVERDUE">Overdue</SelectItem>
+                        <SelectItem value="Unpaid">Unpaid</SelectItem>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Overdue">Overdue</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -708,7 +708,7 @@ export function DailySalesValidation() {
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Total Value</Label>
-                    <p className="text-sm sm:text-base font-normal mt-1 font-medium">{formatCurrency(selectedEntry.value)}</p>
+                    <p className="text-sm sm:text-base mt-1 font-medium">{formatCurrency(selectedEntry.value)}</p>
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Cash Sales</Label>
@@ -762,7 +762,7 @@ export function DailySalesValidation() {
                   </div>
                   <div>
                     <Label className="text-sm sm:text-base font-medium">Cash Variance</Label>
-                    <p className={`text-sm sm:text-base font-normal mt-1 font-medium ${
+                    <p className={`text-sm sm:text-base mt-1 font-medium ${
                       Math.abs(selectedEntry.cashToBank - selectedEntry.bankLodgement) <= 100
                         ? 'text-green-600' : 'text-red-600'
                     }`}>

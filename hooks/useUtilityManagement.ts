@@ -125,7 +125,7 @@ export function useUtilityManagement() {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), UTILITY_API_CONFIG.TIMEOUT);
-        
+        console.log(`API call attempt ${attempt} to ${endpoint} with token ${user?.token}`);
         const response = await fetch(`${UTILITY_API.BASE_URL}${endpoint}`, {
           ...options,
           headers: {
@@ -169,15 +169,15 @@ export function useUtilityManagement() {
       if (isConnected) {
         const endpoint = UTILITY_API.ENDPOINTS.UTILITIES.replace(':stationId', selectedStation.id);
         const response: UtilityResponse = await apiCall<UtilityResponse>(endpoint);
-        
-        setBills(response.data.bills || []);
-        setStatistics(response.data.stats);
-        setBudgetData(response.data.budgetData || []);
-        setMonthlyData(response.data.monthlyData || []);
-        setPieData(response.data.pieData || []);
-        
+        console.log('Fetched utility data:', response.content);
+        setBills(response.content || []);
+        //setStatistics(response.content.stats);
+       // setBudgetData(response.content.budgetData || []);
+        //setMonthlyData(response.content.monthlyData || []);
+        //setPieData(response.content.pieData || []);
+
         toast.success('Utility data updated', {
-          description: `Found ${response.data.bills?.length || 0} utility bills`
+          description: `Found ${response.content?.length || 0} utility bills`
         });
       } else {
         // Use mock data when backend is unavailable
@@ -266,15 +266,36 @@ export function useUtilityManagement() {
     try {
       const isConnected = await checkConnection();
       
+      // Always parse consumption into nested object before sending
+      const parsedBillData = {
+        ...billData,
+        consumption: {
+          value: billData.consumption ? parseFloat(billData.consumption) : 'N/A',
+          unit: billData.unit || '',
+          rate: billData.rate ? parseFloat(billData.rate) : 0
+        },
+        period: formatPeriod(billData.periodStart, billData.periodEnd)
+      };
+// Helper to format period as 'MMM DD, YYYY - MMM DD, YYYY'
+function formatPeriod(start: string, end: string): string {
+  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: '2-digit' };
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+  const startStr = startDate ? startDate.toLocaleDateString('en-US', options) : '';
+  const endStr = endDate ? endDate.toLocaleDateString('en-US', options) : '';
+  return `${startStr} - ${endStr}`;
+}
       if (isConnected) {
+        console.log('Creating utility bill with data:', parsedBillData);
         const response: UtilityBill = await apiCall<UtilityBill>(
           UTILITY_API.ENDPOINTS.CREATE_BILL,
           {
             method: 'POST',
             body: JSON.stringify({
-              ...billData,
+              ...parsedBillData,
               stationId: selectedStation?.id,
-              createdBy: user?.name || 'Current User'
+              createdBy: user?.name || 'Current User',
+              stationName: selectedStation?.name || ''
             })
           }
         );

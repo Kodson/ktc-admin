@@ -107,7 +107,7 @@ export interface StatutoryFilters {
 
 export interface StatutoryResponse {
   success: boolean;
-  data: {
+  content: {
     documents: StatutoryDocument[];
     stats: StatutoryStats;
     monthlyExpirations: StatutoryChartData[];

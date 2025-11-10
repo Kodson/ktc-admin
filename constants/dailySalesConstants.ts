@@ -26,6 +26,7 @@ export const DAILY_SALES_API_CONFIG = {
 
 // Fuel Products
 export const FUEL_PRODUCTS = [
+  '--',
   'PMS',
   'AGO', 
   'LPG',

@@ -168,19 +168,19 @@ export function useStatutoryManagement() {
     try {
       const isConnected = await checkConnection();
       
-      if (isConnected) {
-        const endpoint = STATUTORY_API.ENDPOINTS.DOCUMENTS.replace(':stationId', selectedStation.id);
-        const response: StatutoryResponse = await apiCall<StatutoryResponse>(endpoint);
-        
-        setDocuments(response.data.documents || []);
-        setStatistics(response.data.stats);
-        setMonthlyExpirations(response.data.monthlyExpirations || []);
-        setDocumentDistribution(response.data.documentDistribution || []);
-        setUpcomingDeadlines(response.data.upcomingDeadlines || []);
-        
-        toast.success('Statutory data updated', {
-          description: `Found ${response.data.documents?.length || 0} statutory documents`
-        });
+          if (isConnected) {
+            const endpoint = STATUTORY_API.ENDPOINTS.DOCUMENTS.replace(':stationId', selectedStation.id);
+            const response: any = await apiCall(endpoint);
+            console.log('Fetched statutory data:', response);
+            setDocuments(response.content || []);
+            // Remove or update the following lines if your backend does not return these fields:
+            // setStatistics(response.stats || defaultStats);
+            // setMonthlyExpirations(response.monthlyExpirations || []);
+            // setDocumentDistribution(response.documentDistribution || []);
+            // setUpcomingDeadlines(response.upcomingDeadlines || []);
+            toast.success('Statutory data updated', {
+              description: `Found ${response.content?.length || 0} statutory documents`
+            });
       } else {
         // Use mock data when backend is unavailable
         console.info('Using mock data for statutory documents');
@@ -268,29 +268,46 @@ export function useStatutoryManagement() {
     
     try {
       const isConnected = await checkConnection();
-      
+      // Prepare payload to match backend expectations
+      const payload: any = {
+        // Required fields, convert types as needed
+        type: docData.type,
+        title: docData.title,
+        authority: docData.authority,
+        reference: docData.reference,
+        registeredDate: docData.registeredDate,
+        issuedDate: docData.issuedDate,
+        expiresDate: docData.expiresDate,
+        fees: typeof docData.fees === 'string' ? parseFloat(docData.fees) : docData.fees,
+        paymentStatus: docData.paymentStatus,
+        assignee: docData.assignee,
+        stationId: selectedStation?.id,
+        createdBy: user?.name || 'Current User',
+        stationName: selectedStation?.name || ''
+      };
+      // Remove any extra fields not expected by backend
+      // If enums need to be mapped, do it here (e.g., paymentStatus, type)
+      // Example: payload.paymentStatus = mapPaymentStatus(docData.paymentStatus);
+      console.log('Prepared payload for creating document:', payload);
+
       if (isConnected) {
         const response: StatutoryDocument = await apiCall<StatutoryDocument>(
           STATUTORY_API.ENDPOINTS.CREATE_DOCUMENT,
           {
             method: 'POST',
-            body: JSON.stringify({
-              ...docData,
-              stationId: selectedStation?.id,
-              createdBy: user?.name || 'Current User'
-            })
+            body: JSON.stringify(payload)
           }
         );
-        
+
         setDocuments(prev => [...prev, response]);
-        
+
         toast.success('Statutory document created successfully!', {
           description: `${docData.type} has been added to the system.`
         });
-        
+
         // Refresh data to ensure consistency
         await fetchStatutoryData();
-        
+
         return true;
       } else {
         // Mock creation for offline mode
@@ -305,7 +322,7 @@ export function useStatutoryManagement() {
           issuedDate: docData.issuedDate,
           expiresDate: docData.expiresDate,
           daysRemaining,
-          fees: parseFloat(docData.fees),
+          fees: typeof docData.fees === 'string' ? parseFloat(docData.fees) : docData.fees,
           paymentStatus: docData.paymentStatus as StatutoryDocument['paymentStatus'],
           status: getDocumentStatus(daysRemaining) as StatutoryDocument['status'],
           assignee: docData.assignee,
@@ -313,13 +330,13 @@ export function useStatutoryManagement() {
           stationName: selectedStation?.name || '',
           createdBy: user?.name || 'Current User'
         };
-        
+
         setDocuments(prev => [...prev, newDocument]);
-        
+
         toast.success('Statutory document created successfully! (Mock Mode)', {
           description: `${docData.type} has been processed`
         });
-        
+
         return true;
       }
     } catch (error) {
@@ -329,11 +346,11 @@ export function useStatutoryManagement() {
         timestamp: new Date().toISOString()
       };
       setLastError(apiError);
-      
+
       toast.error('Failed to create statutory document', {
         description: 'Please try again later'
       });
-      
+
       return false;
     } finally {
       setIsSubmitting(false);

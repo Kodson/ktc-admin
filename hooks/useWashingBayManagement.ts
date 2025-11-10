@@ -197,14 +197,11 @@ export function useWashingBayManagement() {
       if (isConnected) {
         const endpoint = WASHING_BAY_API.ENDPOINTS.ENTRIES.replace(':stationId', selectedStation.id);
         const response: WashingBayResponse = await apiCall<WashingBayResponse>(endpoint);
-        
-        setEntries(response.data.entries || []);
-        setStatistics(response.data.stats);
-        setAnalysis(response.data.analysis);
-        setChartData(response.data.chartData || []);
-        
+        console.log('Fetched washing bay data:', response);
+        // response.content is the array of entries
+        setEntries(Array.isArray(response.content) ? response.content : []);
         toast.success('Washing bay data updated', {
-          description: `Found ${response.data.entries?.length || 0} washing bay entries`
+          description: `Found ${Array.isArray(response.content) ? response.content.length : 0} washing bay entries`
         });
       } else {
         // Use mock data when backend is unavailable
@@ -290,18 +287,26 @@ export function useWashingBayManagement() {
     try {
       const isConnected = await checkConnection();
       
-      // Calculate derived values
-      const noOfVehicles = parseInt(entryData.noOfVehicles);
-      const pricePerVehicle = parseFloat(entryData.pricePerVehicle);
-      const totalSale = noOfVehicles * pricePerVehicle;
-      const washingBayCommissionRate = parseFloat(entryData.washingBayCommissionRate);
-      const washingBayCommission = calculateCommission(totalSale, washingBayCommissionRate);
-      const companyCommission = totalSale - washingBayCommission;
-      const expenses = parseFloat(entryData.expenses);
-      const bankDeposit = calculateBankDeposit(totalSale, expenses);
-      const balancing = calculateBalancing(totalSale, washingBayCommission, expenses, bankDeposit);
+  // Use form values directly and calculate commissions/balancing
+  const noOfVehicles = parseInt(entryData.noOfVehicles);
+  const totalSale = parseFloat(entryData.totalSale);
+  const washingBayCommission = totalSale * 0.25;
+  const companyCommission = totalSale * 0.75;
+  const expenses = parseFloat(entryData.expenses);
+  const bankDeposit = parseFloat(entryData.bankDeposit);
+  const balancing = bankDeposit-expenses;
       
       if (isConnected) {
+        console.log('Creating washing bay entry with data:', {
+          ...entryData,
+          stationId: selectedStation?.id,
+          createdBy: user?.name || 'Current User',
+          totalSale,
+          washingBayCommission,
+          companyCommission,
+          bankDeposit,
+          balancing
+        });
         const response: WashingBayEntry = await apiCall<WashingBayEntry>(
           WASHING_BAY_API.ENDPOINTS.CREATE_ENTRY,
           {
@@ -312,7 +317,6 @@ export function useWashingBayManagement() {
               createdBy: user?.name || 'Current User',
               totalSale,
               washingBayCommission,
-              washingBayCommissionRate,
               companyCommission,
               bankDeposit,
               balancing
@@ -321,14 +325,11 @@ export function useWashingBayManagement() {
         );
         
         setEntries(prev => [...prev, response]);
-        
         toast.success('Washing bay entry created successfully!', {
           description: `Entry for ${entryData.date} with ${entryData.noOfVehicles} vehicles has been added.`
         });
-        
         // Refresh data to ensure consistency
         await fetchWashingBayData();
-        
         return true;
       } else {
         // Mock creation for offline mode
@@ -336,10 +337,8 @@ export function useWashingBayManagement() {
           id: entries.length + 1,
           date: entryData.date,
           noOfVehicles,
-          pricePerVehicle,
           totalSale,
           washingBayCommission,
-          washingBayCommissionRate,
           companyCommission,
           expenses,
           bankDeposit,
@@ -350,13 +349,10 @@ export function useWashingBayManagement() {
           createdBy: user?.name || 'Current User',
           notes: entryData.notes
         };
-        
         setEntries(prev => [...prev, newEntry]);
-        
         toast.success('Washing bay entry created successfully! (Mock Mode)', {
           description: `Entry for ${entryData.date} has been processed`
         });
-        
         return true;
       }
     } catch (error) {
@@ -387,16 +383,14 @@ export function useWashingBayManagement() {
     try {
       const isConnected = await checkConnection();
       
-      // Calculate derived values
-      const noOfVehicles = parseInt(entryData.noOfVehicles);
-      const pricePerVehicle = parseFloat(entryData.pricePerVehicle);
-      const totalSale = noOfVehicles * pricePerVehicle;
-      const washingBayCommissionRate = parseFloat(entryData.washingBayCommissionRate);
-      const washingBayCommission = calculateCommission(totalSale, washingBayCommissionRate);
-      const companyCommission = totalSale - washingBayCommission;
-      const expenses = parseFloat(entryData.expenses);
-      const bankDeposit = calculateBankDeposit(totalSale, expenses);
-      const balancing = calculateBalancing(totalSale, washingBayCommission, expenses, bankDeposit);
+  // Use form values directly and calculate commissions/balancing
+  const noOfVehicles = parseInt(entryData.noOfVehicles);
+  const totalSale = parseFloat(entryData.totalSale);
+  const washingBayCommission = totalSale * 0.25;
+  const companyCommission = totalSale * 0.75;
+  const expenses = parseFloat(entryData.expenses);
+  const bankDeposit = parseFloat(entryData.bankDeposit);
+  const balancing = expenses - bankDeposit;
       
       if (isConnected) {
         const endpoint = WASHING_BAY_API.ENDPOINTS.UPDATE_ENTRY.replace(':id', entryData.id.toString());
@@ -408,7 +402,6 @@ export function useWashingBayManagement() {
               ...entryData,
               totalSale,
               washingBayCommission,
-              washingBayCommissionRate,
               companyCommission,
               bankDeposit,
               balancing
@@ -419,11 +412,9 @@ export function useWashingBayManagement() {
         setEntries(prev => prev.map(entry => 
           entry.id === entryData.id ? response : entry
         ));
-        
         toast.success('Washing bay entry updated successfully!', {
           description: `Entry for ${entryData.date} has been updated.`
         });
-        
         return true;
       } else {
         // Mock update for offline mode
@@ -433,10 +424,8 @@ export function useWashingBayManagement() {
                 ...entry,
                 date: entryData.date,
                 noOfVehicles,
-                pricePerVehicle,
                 totalSale,
                 washingBayCommission,
-                washingBayCommissionRate,
                 companyCommission,
                 expenses,
                 bankDeposit,
@@ -447,7 +436,6 @@ export function useWashingBayManagement() {
               }
             : entry
         ));
-        
         toast.success('Washing bay entry updated successfully! (Mock Mode)');
         return true;
       }
