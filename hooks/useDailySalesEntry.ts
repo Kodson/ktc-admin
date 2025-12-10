@@ -262,11 +262,11 @@ export function useDailySalesEntry() {
     
     // 1. Available(availableL) = Open Stock + Supply + Overage/Shortage
     if (calculated.openSL !== undefined && calculated.supply !== undefined && calculated.overageShortageL !== undefined) {
-      calculated.availableL = calculated.openSL + calculated.supply + calculated.overageShortageL;
+      calculated.availableL = calculated.openSL + calculated.supply ; //+ calculated.overageShortageL
       console.log('Calculating availableL:', {
         openSL: calculated.openSL,
         supply: calculated.supply,
-        overageShortageL: calculated.overageShortageL,
+        //overageShortageL: calculated.overageShortageL,
         result: calculated.availableL
       });
     }

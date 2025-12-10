@@ -2,75 +2,206 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Separator } from './ui/separator';
 import { ShareModal } from './ShareModal';
 import { 
   FileText,
   Download,
   Calendar,
   Printer,
-  Mail,
   Share2,
-  RefreshCw,
-  Filter
+  RefreshCw
 } from 'lucide-react';
 import { 
-  getCurrentWeekOfMonth,
-  getCurrentMonthYear,
-  generateAvailableMonths,
-  generateWeeksForMonth,
-  generateWeeksUpToCurrent,
-  getWeekDateRange,
   formatCurrency,
   formatNumber
 } from '../utils/dateUtils';
+import { 
+  fetchWeeklyReport, 
+  transformWeeklyReportData,
+  isTokenExpired,
+  getUserFromToken
+} from '../services/weeklyReportService';
+
+// Additional utility functions for date-based week calculations
+const getWeekFromDate = (date: Date) => {
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const daysSinceFirstDay = Math.floor((date.getTime() - firstDayOfMonth.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(daysSinceFirstDay / 7) + 1;
+};
+
+const getMonthYearFromDate = (date: Date) => {
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                     'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  return {
+    month: monthNames[date.getMonth()],
+    year: date.getFullYear(),
+    monthIndex: date.getMonth()
+  };
+};
+
+// Parse date string safely to avoid timezone issues
+const parseLocalDate = (dateString: string) => {
+  return new Date(dateString + 'T00:00:00');
+};
+
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 
 
 
 // Note: Utility functions moved to /utils/dateUtils.ts to avoid duplicate declarations
 
 export function WeeklyReport() {
-  // Get current month and year for defaults
-  const currentMonthYear = getCurrentMonthYear();
-  const availableMonths = generateAvailableMonths();
-  const currentMonthValue = availableMonths.find(m => 
-    m.month === currentMonthYear.month && m.year === currentMonthYear.year
-  )?.value || availableMonths[0]?.value;
-  
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthValue);
-  
-  // Get weeks for selected month
-  const selectedMonthData = availableMonths.find(m => m.value === selectedMonth);
-  const availableWeeks = selectedMonthData 
-    ? generateWeeksForMonth(selectedMonthData.year, selectedMonthData.monthIndex)
-    : [];
-  
-  // Default to current week if in current month, otherwise last available week
-  const getDefaultWeek = () => {
-    if (selectedMonthData?.month === currentMonthYear.month && selectedMonthData?.year === currentMonthYear.year) {
-      return availableWeeks[availableWeeks.length - 1]?.value; // Current week
-    }
-    return availableWeeks[availableWeeks.length - 1]?.value; // Last week of selected month
+  // Initialize with current week's start date
+  const getCurrentWeekStartDate = () => {
+    const now = new Date();
+    const currentWeek = getWeekFromDate(now);
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const weekStartDate = new Date(firstDayOfMonth);
+    weekStartDate.setDate(firstDayOfMonth.getDate() + (currentWeek - 1) * 7);
+    return weekStartDate;
   };
-  
-  const [selectedWeek, setSelectedWeek] = useState(getDefaultWeek() || 'current');
-  
-  // Update selected week when month changes
-  const handleMonthChange = (newMonth: string) => {
-    setSelectedMonth(newMonth);
-    const newMonthData = availableMonths.find(m => m.value === newMonth);
-    if (newMonthData) {
-      const newWeeks = generateWeeksForMonth(newMonthData.year, newMonthData.monthIndex);
-      // Set to current week if current month, otherwise last week of month
-      if (newMonthData.month === currentMonthYear.month && newMonthData.year === currentMonthYear.year) {
-        setSelectedWeek(newWeeks[newWeeks.length - 1]?.value || newWeeks[0]?.value);
-      } else {
-        setSelectedWeek(newWeeks[newWeeks.length - 1]?.value || newWeeks[0]?.value);
+
+  const getCurrentWeekEndDate = () => {
+    const startDate = getCurrentWeekStartDate();
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    
+    // Don't exceed the month boundaries
+    const lastDayOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+    if (endDate > lastDayOfMonth) {
+      endDate.setTime(lastDayOfMonth.getTime());
+    }
+    
+    return endDate;
+  };
+
+  // Get station from localStorage
+  const getStationFromLocalStorage = () => {
+    try {
+      const ktcUser = localStorage.getItem('ktc_user');
+      if (ktcUser) {
+        const userData = JSON.parse(ktcUser);
+        return userData.station?.stationName || 'KTC KPONE'; // Fallback to default
       }
+    } catch (error) {
+      console.error('Error reading station from localStorage:', error);
+    }
+    return 'KTC KPONE'; // Default fallback
+  };
+
+  const [startDate, setStartDate] = useState(formatDateForInput(getCurrentWeekStartDate()));
+  const [endDate, setEndDate] = useState(formatDateForInput(getCurrentWeekEndDate()));
+  const [selectedStation, setSelectedStation] = useState(getStationFromLocalStorage()); // Get from localStorage
+  const [reportData, setReportData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Available stations list
+  const availableStations = ['KTC KPONE', 'KTC POKUASE', 'Accra Central Station', 'KTC TEMA', 'KTC KUMASI'];
+
+  // Fetch data from API
+  const fetchReportData = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Check if token is expired before making the request
+      if (isTokenExpired()) {
+        throw new Error('Your session has expired. Please login again.');
+      }
+
+      // Get user info for debugging
+      const userInfo = getUserFromToken();
+      console.log('Current user info:', userInfo);
+
+      // Check if user might have station access issues
+      const ktcUser = localStorage.getItem('ktc_user');
+      if (ktcUser) {
+        const userData = JSON.parse(ktcUser);
+        const userStation = userData.station?.stationName;
+        if (userStation && userStation !== selectedStation) {
+          console.warn(`User's assigned station (${userStation}) differs from selected station (${selectedStation})`);
+        }
+      }
+
+      console.log('Fetching data for:', {
+        station: selectedStation,
+        startDate,
+        endDate
+      });
+
+      const apiResponse = await fetchWeeklyReport(selectedStation, startDate, endDate);
+      console.log('Raw API response:', apiResponse);
+      console.log('Raw API totals structure:', apiResponse.totals);
+      
+      // Log salesUnitPrice structures for debugging
+      if (apiResponse.totals) {
+        console.log('PMS salesUnitPrice structure:', apiResponse.totals.pms?.salesUnitPrice);
+        console.log('AGO salesUnitPrice structure:', apiResponse.totals.ago?.salesUnitPrice);
+      }
+      
+      const transformedData = transformWeeklyReportData(apiResponse, startDate, endDate);
+      
+      setReportData(transformedData);
+      setLastUpdated(new Date());
+      console.log('Report data loaded:', transformedData);
+      console.log('Detected number of price periods:', getSalesUnitPricePeriods());
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch report data';
+      setError(errorMessage);
+      console.error('Error fetching report data:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Load data on component mount and when parameters change
+  useEffect(() => {
+    fetchReportData();
+  }, [selectedStation, startDate, endDate]);
+
+  // Derived values will be calculated inline as needed
+
+  // Handle start date change and auto-calculate end date
+  const handleStartDateChange = (newStartDate: string) => {
+    setStartDate(newStartDate);
+    
+    const startDateObj = parseLocalDate(newStartDate);
+    const calculatedEndDate = new Date(startDateObj);
+    calculatedEndDate.setDate(startDateObj.getDate() + 6);
+    
+    // Don't exceed the month boundaries
+    const lastDayOfMonth = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 0);
+    if (calculatedEndDate > lastDayOfMonth) {
+      calculatedEndDate.setTime(lastDayOfMonth.getTime());
+    }
+    
+    setEndDate(formatDateForInput(calculatedEndDate));
+  };
+
+  // Handle end date change and validate range
+  const handleEndDateChange = (newEndDate: string) => {
+    const startDateObj = parseLocalDate(startDate);
+    const endDateObj = parseLocalDate(newEndDate);
+    
+    // Ensure end date is not before start date
+    if (endDateObj >= startDateObj) {
+      setEndDate(newEndDate);
+    }
+  };
+
+
 
   // Dynamic pricing data structure - creates columns based on number of price changes
 const pricingPeriodsData = {
@@ -128,31 +259,39 @@ const pricingPeriodsData = {
   }
 };
 
- // Get current week info based on selection
+  // Get current week info based on date selection (use API data if available)
   const getCurrentWeekInfo = () => {
-    const selectedWeekData = availableWeeks.find(week => week.value === selectedWeek);
-    if (selectedWeekData) {
-      return {
-        month: selectedWeekData.month,
-        week: `WEEK ${selectedWeekData.weekNumber}`,
-        dateRange: getWeekDateRange(selectedWeekData.weekNumber, selectedWeekData.year, selectedWeekData.monthIndex)
-      };
+    if (reportData?.weekInfo) {
+      return reportData.weekInfo;
     }
+
+    // Fallback to calculated values if no API data
+    const startDateObj = new Date(startDate + 'T00:00:00');
+    const endDateObj = new Date(endDate + 'T00:00:00');
+    const weekInfo = getMonthYearFromDate(startDateObj);
+    const weekNumber = getWeekFromDate(startDateObj);
     
-    // Fallback to current week
-    const { month } = getCurrentMonthYear();
-    const currentWeekNum = getCurrentWeekOfMonth();
+    // Format the actual selected date range
+    const formatDate = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString().slice(-2);
+      return `${day}/${month}/${year}`;
+    };
+    
+    const actualDateRange = `(${formatDate(startDateObj)} - ${formatDate(endDateObj)})`;
+    
     return {
-      month: month,
-      week: `WEEK ${currentWeekNum}`,
-      dateRange: getWeekDateRange(currentWeekNum)
+      month: weekInfo.month,
+      week: `WEEK ${weekNumber}`,
+      dateRange: actualDateRange
     };
   };
 
   // Get week-specific data variation (for demonstration)
   const getWeekSpecificMultiplier = () => {
-    const selectedWeekData = availableWeeks.find(week => week.value === selectedWeek);
-    const weekNumber = selectedWeekData?.weekNumber || getCurrentWeekOfMonth();
+    const startDateObj = parseLocalDate(startDate);
+    const weekNumber = getWeekFromDate(startDateObj);
     
     // Create some variation between weeks (90% to 110% of base values)
     const baseMultiplier = 0.9 + (weekNumber * 0.05);
@@ -161,8 +300,12 @@ const pricingPeriodsData = {
 
   const currentWeekInfo = getCurrentWeekInfo();
 
-// Weekly report data structure matching the exact format from the image
-const weeklyReportData = {
+// Weekly report data structure - use API data when available, fallback to static data
+const weeklyReportData = reportData ? {
+  weekInfo: reportData.weekInfo,
+  totals: reportData.totals,
+  summaryData: reportData.summaryData
+} : {
   weekInfo: {
     month: currentWeekInfo.month,
     week: currentWeekInfo.week,
@@ -262,12 +405,12 @@ const weeklyReportData = {
 
   // Dynamic calculations
   getDynamicSalesValue: function() {
-    const pmsTotalSales = pricingPeriodsData.pms.priceChanges.reduce((total, period, index) => {
+    const pmsTotalSales = pricingPeriodsData.pms.priceChanges.reduce((total, period) => {
       const price = pricingPeriodsData.pms.basePrice + period.priceAdjustment;
       return total + (period.quantity * price);
     }, 0);
 
-    const agoTotalSales = pricingPeriodsData.ago.priceChanges.reduce((total, period, index) => {
+    const agoTotalSales = pricingPeriodsData.ago.priceChanges.reduce((total, period) => {
       const price = pricingPeriodsData.ago.basePrice + period.priceAdjustment;
       return total + (period.quantity * price);
     }, 0);
@@ -276,22 +419,81 @@ const weeklyReportData = {
   }
 };
   
-  // Update selected week when available weeks change
-  useEffect(() => {
-    if (availableWeeks.length > 0 && !availableWeeks.find(w => w.value === selectedWeek)) {
-      // If current selected week is not available in new weeks, select default
-      setSelectedWeek(getDefaultWeek() || availableWeeks[0]?.value);
-    }
-  }, [availableWeeks, selectedWeek]);
+  // No need for useEffect as dates are directly controlled
 
-  // Calculate dynamic pricing based on period
+  // Get sales unit price periods from API data
+  const getSalesUnitPricePeriods = () => {
+    if (reportData?.totals) {
+      // Check if salesUnitPriceRaw is an array or object with multiple periods
+      const pmsUnitPriceRaw = (reportData.totals.pms as any)?.salesUnitPriceRaw;
+      
+      if (Array.isArray(pmsUnitPriceRaw)) {
+        return pmsUnitPriceRaw.length;
+      } else if (typeof pmsUnitPriceRaw === 'object' && pmsUnitPriceRaw !== null) {
+        // If it's an object, count the number of price periods
+        const keys = Object.keys(pmsUnitPriceRaw).filter(key => 
+          key.startsWith('period') || 
+          key.includes('price') || 
+          key.includes('value') ||
+          /^\d+$/.test(key) // numeric keys like "0", "1", "2"
+        );
+        return keys.length > 0 ? keys.length : 1;
+      }
+      
+      // If it's a single number, we have 1 period
+      if (typeof pmsUnitPriceRaw === 'number') {
+        return 1;
+      }
+    }
+    
+    // Fallback to hardcoded pricing periods if no API data
+    return pricingPeriodsData.pms.priceChanges.length;
+  };
+
+  // Get sales unit price value for a specific period and fuel type
+  const getSalesUnitPriceForPeriod = (fuelType: 'pms' | 'ago' | 'rate' | 'pms_value' | 'ago_value', periodIndex: number) => {
+    if (reportData?.totals) {
+      const fuelData = reportData.totals[fuelType as keyof typeof reportData.totals];
+      if (!fuelData) return 0;
+      
+      const salesUnitPriceRaw = (fuelData as any)?.salesUnitPriceRaw;
+      
+      if (Array.isArray(salesUnitPriceRaw)) {
+        return salesUnitPriceRaw[periodIndex] || 0;
+      } else if (typeof salesUnitPriceRaw === 'object' && salesUnitPriceRaw !== null) {
+        // Handle object structure - look for period-specific keys
+        const periodKey = `period${periodIndex + 1}`;
+        const priceKey = `price${periodIndex + 1}`;
+        const valueKey = `value${periodIndex + 1}`;
+        const numericKey = `${periodIndex}`;
+        
+        return salesUnitPriceRaw[periodKey] || 
+               salesUnitPriceRaw[priceKey] || 
+               salesUnitPriceRaw[valueKey] || 
+               salesUnitPriceRaw[numericKey] || 
+               0;
+      } else if (typeof salesUnitPriceRaw === 'number') {
+        // If it's a single number, return it for the first period, 0 for others
+        return periodIndex === 0 ? salesUnitPriceRaw : 0;
+      }
+    }
+    
+    // Fallback to calculated pricing if no API data
+    if (fuelType === 'pms' || fuelType === 'ago') {
+      return calculatePeriodSalesAtUnitPrice(fuelType, periodIndex);
+    }
+    
+    return 0;
+  };
+
+  // Calculate dynamic pricing based on period (fallback for when no API data)
   const calculatePeriodPrice = (fuelType: 'pms' | 'ago', periodIndex: number) => {
     const basePrice = pricingPeriodsData[fuelType].basePrice;
     const adjustment = pricingPeriodsData[fuelType].priceChanges[periodIndex]?.priceAdjustment || 0;
     return basePrice + adjustment;
   };
 
-  // Calculate sales @ unit price for a specific period
+  // Calculate sales @ unit price for a specific period (fallback)
   const calculatePeriodSalesAtUnitPrice = (fuelType: 'pms' | 'ago', periodIndex: number) => {
     const periodData = pricingPeriodsData[fuelType].priceChanges[periodIndex];
     if (!periodData) return 0;
@@ -303,18 +505,39 @@ const weeklyReportData = {
 
   // Calculate total sales @ unit price across all periods
   const calculateTotalSalesAtUnitPrice = (fuelType: 'pms' | 'ago') => {
-    return pricingPeriodsData[fuelType].priceChanges.reduce((total, _, index) => {
-      return total + calculatePeriodSalesAtUnitPrice(fuelType, index);
-    }, 0);
+    const numberOfPeriods = getSalesUnitPricePeriods();
+    let total = 0;
+    
+    for (let i = 0; i < numberOfPeriods; i++) {
+      total += getSalesUnitPriceForPeriod(fuelType, i);
+    }
+    
+    return total;
   };
 
   // Get number of price change periods
   const getNumberOfPricePeriods = () => {
-    return pricingPeriodsData.pms.priceChanges.length; // Assuming PMS and AGO have same number of periods
+    return getSalesUnitPricePeriods();
   };
 
   // Get period data for display
   const getPeriodData = (periodIndex: number) => {
+    if (reportData?.totals) {
+      return {
+        pms: {
+          period: `Period ${periodIndex + 1}`,
+          salesValue: getSalesUnitPriceForPeriod('pms', periodIndex)
+        },
+        ago: {
+          period: `Period ${periodIndex + 1}`,
+          salesValue: getSalesUnitPriceForPeriod('ago', periodIndex)
+        },
+        pmsSalesValue: getSalesUnitPriceForPeriod('pms', periodIndex),
+        agoSalesValue: getSalesUnitPriceForPeriod('ago', periodIndex)
+      };
+    }
+    
+    // Fallback to calculated pricing
     const pmsPeriod = pricingPeriodsData.pms.priceChanges[periodIndex];
     const agoPeriod = pricingPeriodsData.ago.priceChanges[periodIndex];
     return {
@@ -329,6 +552,13 @@ const weeklyReportData = {
 
   // Get average unit price across all periods
   const getAverageUnitPrice = (fuelType: 'pms' | 'ago') => {
+    if (reportData?.totals) {
+      const total = calculateTotalSalesAtUnitPrice(fuelType);
+      const totalQuantity = reportData.totals[fuelType]?.salesCost || 1;
+      return total / totalQuantity;
+    }
+    
+    // Fallback calculation
     const totalPrice = pricingPeriodsData[fuelType].priceChanges.reduce((sum, _, index) => {
       return sum + calculatePeriodPrice(fuelType, index);
     }, 0);
@@ -409,7 +639,7 @@ const weeklyReportData = {
           { 
             tableData, 
             summaryData,
-            selectedWeek: selectedMonth 
+            selectedPeriod: `${currentWeekInfo.month} ${currentWeekInfo.week}` 
           }
         );
         
@@ -512,7 +742,7 @@ const weeklyReportData = {
             tableData, 
             summaryData,
             chartData,
-            selectedWeek: selectedMonth 
+            selectedPeriod: `${currentWeekInfo.month} ${currentWeekInfo.week}` 
           }
         );
         
@@ -551,40 +781,46 @@ const weeklyReportData = {
           <h1 className="text-xl sm:text-2xl font-medium">
             {currentWeekInfo.month} {currentWeekInfo.week} {currentWeekInfo.dateRange}
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Accra Central Station - Weekly Operations Report</p>
+          <p className="text-sm sm:text-base text-muted-foreground">{selectedStation} - Weekly Operations Report</p>
         </div>
         
-        {/* Month and Week Selectors */}
+        {/* Station and Date Range Selectors */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Select month" />
+            <label className="text-sm font-medium">Station:</label>
+            <Select value={selectedStation} onValueChange={setSelectedStation}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select station" />
               </SelectTrigger>
               <SelectContent>
-                {availableMonths.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
+                {availableStations.map((station) => (
+                  <SelectItem key={station} value={station}>
+                    {station}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <label className="text-sm font-medium">Start Date:</label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => handleStartDateChange(e.target.value)}
+              className="w-[150px]"
+            />
+          </div>
           
           <div className="flex items-center gap-2">
-            <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Select week" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableWeeks.map((week) => (
-                  <SelectItem key={week.value} value={week.value}>
-                    {week.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium">End Date:</label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => handleEndDateChange(e.target.value)}
+              className="w-[150px]"
+            />
           </div>
         </div>
       </div>
@@ -621,13 +857,72 @@ const weeklyReportData = {
             Share
           </Button>
         </ShareModal>
-        <Button variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
+        <Button variant="outline" size="sm" onClick={fetchReportData} disabled={isLoading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          {isLoading ? 'Loading...' : 'Refresh'}
         </Button>
       </div>
 
-      {/* Week Selection Info */}
+      {/* Loading State */}
+      {isLoading && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-2">
+              <RefreshCw className="h-5 w-5 animate-spin" />
+              <span>Loading report data for {selectedStation}...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6">
+            <div className="flex items-start space-x-2">
+              <div className="w-5 h-5 rounded-full bg-red-500 flex-shrink-0 mt-0.5"></div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-800">Error Loading Report</h3>
+                <p className="text-red-700 mt-1">{error}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchReportData}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Try Again
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const userInfo = getUserFromToken();
+                      const tokenExpired = isTokenExpired();
+                      const ktcUser = localStorage.getItem('ktc_user');
+                      const userData = ktcUser ? JSON.parse(ktcUser) : null;
+                      
+                      alert(`Debug Info:
+- Token Expired: ${tokenExpired}
+- User: ${userInfo?.username || 'Unknown'}
+- User Role: ${userInfo?.role || 'Unknown'}
+- User Station: ${userData?.station?.stationName || 'Unknown'}
+- Selected Station: ${selectedStation}
+- API Base URL: ${import.meta.env.VITE_API_BASE_URL}
+                      `);
+                    }}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Debug Info
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Date Selection Info */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -642,20 +937,35 @@ const weeklyReportData = {
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <Badge variant="outline" className="text-xs">
-                Week {availableWeeks.find(w => w.value === selectedWeek)?.weekNumber || 1} of {availableWeeks.length}
+                Week {getWeekFromDate(parseLocalDate(startDate))} of Month
               </Badge>
               {(() => {
-                const selectedWeekData = availableWeeks.find(w => w.value === selectedWeek);
-                const isCurrentMonthAndYear = selectedMonthData?.month === currentMonthYear.month && 
-                                            selectedMonthData?.year === currentMonthYear.year;
-                const isCurrentWeek = isCurrentMonthAndYear && 
-                                    selectedWeekData?.weekNumber === getCurrentWeekOfMonth();
-                return isCurrentWeek && (
+                const startDateObj = parseLocalDate(startDate);
+                const currentDate = new Date();
+                const isSameWeek = Math.abs(startDateObj.getTime() - currentDate.getTime()) < 7 * 24 * 60 * 60 * 1000 &&
+                                  startDateObj.getMonth() === currentDate.getMonth() &&
+                                  startDateObj.getFullYear() === currentDate.getFullYear();
+                return isSameWeek && (
                   <Badge className="bg-green-100 text-green-800 text-xs">Current Week</Badge>
                 );
               })()}
               <div className="text-xs text-muted-foreground">
-                {selectedMonthData?.label}: {availableWeeks.length} week{availableWeeks.length !== 1 ? 's' : ''} available
+                {reportData ? 'Data loaded from API' : 'Auto-calculated from selected start date'} 
+                {!isLoading && reportData && (
+                  <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-200">
+                    Live Data
+                  </Badge>
+                )}
+                {!isLoading && !reportData && !error && (
+                  <Badge variant="outline" className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                    Sample Data
+                  </Badge>
+                )}
+                {lastUpdated && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -734,15 +1044,14 @@ const weeklyReportData = {
                           <TableHead className="border border-gray-300 text-center font-bold bg-yellow-200 text-xs sm:text-sm min-w-28">
                             SALES @ COST
                           </TableHead>
-                          {/* Dynamic SALES @ UNIT PRICE columns based on price periods */}
+                          {/* Dynamic SALES @ UNIT PRICE columns based on API data */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const periodData = getPeriodData(index);
                             return (
                               <TableHead 
                                 key={`sales-unit-price-${index}`}
                                 className="border border-gray-300 text-center font-bold bg-yellow-200 text-xs sm:text-sm min-w-32"
                               >
-                                SALES @ UNIT PRICE ({periodData.pms.period})
+                                SALES @ UNIT PRICE (Period {index + 1})
                               </TableHead>
                             );
                           })}
@@ -770,7 +1079,7 @@ const weeklyReportData = {
                           <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm">{formatNumber(weeklyReportData.totals.pms.salesCost)}</TableCell>
                           {/* Dynamic SALES @ UNIT PRICE columns for PMS */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const periodSalesValue = calculatePeriodSalesAtUnitPrice('pms', index);
+                            const periodSalesValue = getSalesUnitPriceForPeriod('pms', index);
                             return (
                               <TableCell 
                                 key={`pms-period-${index}`}
@@ -795,7 +1104,7 @@ const weeklyReportData = {
                           <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm">{formatNumber(weeklyReportData.totals.ago.salesCost)}</TableCell>
                           {/* Dynamic SALES @ UNIT PRICE columns for AGO */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const periodSalesValue = calculatePeriodSalesAtUnitPrice('ago', index);
+                            const periodSalesValue = getSalesUnitPriceForPeriod('ago', index);
                             return (
                               <TableCell 
                                 key={`ago-period-${index}`}
@@ -824,7 +1133,7 @@ const weeklyReportData = {
                               key={`rate-period-${index}`}
                               className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm"
                             >
-                              -
+                              {reportData?.totals?.rate ? getSalesUnitPriceForPeriod('rate' as any, index) > 0 ? formatCurrency(getSalesUnitPriceForPeriod('rate' as any, index)) : '-' : '-'}
                             </TableCell>
                           ))}
                           <TableCell className="border border-gray-300 text-center text-xs sm:text-sm">-</TableCell>
@@ -842,13 +1151,13 @@ const weeklyReportData = {
                           <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm">{formatNumber(weeklyReportData.totals.pms_value.salesCost)}</TableCell>
                           {/* Dynamic PMS Value columns */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const periodSalesValue = calculatePeriodSalesAtUnitPrice('pms', index);
+                            const periodSalesValue = reportData?.totals?.pms_value ? getSalesUnitPriceForPeriod('pms_value' as any, index) : 0;
                             return (
                               <TableCell 
                                 key={`pms-value-period-${index}`}
                                 className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm"
                               >
-                                {formatCurrency(periodSalesValue)}
+                                {periodSalesValue > 0 ? formatCurrency(periodSalesValue) : '-'}
                               </TableCell>
                             );
                           })}
@@ -867,13 +1176,13 @@ const weeklyReportData = {
                           <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm">{formatNumber(weeklyReportData.totals.ago_value.salesCost)}</TableCell>
                           {/* Dynamic AGO Value columns */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const periodSalesValue = calculatePeriodSalesAtUnitPrice('ago', index);
+                            const periodSalesValue = reportData?.totals?.ago_value ? getSalesUnitPriceForPeriod('ago_value' as any, index) : 0;
                             return (
                               <TableCell 
                                 key={`ago-value-period-${index}`}
                                 className="border border-gray-300 text-center bg-yellow-100 text-xs sm:text-sm"
                               >
-                                {formatCurrency(periodSalesValue)}
+                                {periodSalesValue > 0 ? formatCurrency(periodSalesValue) : '-'}
                               </TableCell>
                             );
                           })}
@@ -892,8 +1201,8 @@ const weeklyReportData = {
                           <TableCell className="border border-gray-300 text-center bg-yellow-100 font-bold text-xs sm:text-sm">{formatNumber(weeklyReportData.totals.total.salesCost)}</TableCell>
                           {/* Dynamic Total columns */}
                           {Array.from({ length: getNumberOfPricePeriods() }, (_, index) => {
-                            const pmsPeriodSales = calculatePeriodSalesAtUnitPrice('pms', index);
-                            const agoPeriodSales = calculatePeriodSalesAtUnitPrice('ago', index);
+                            const pmsPeriodSales = getSalesUnitPriceForPeriod('pms', index);
+                            const agoPeriodSales = getSalesUnitPriceForPeriod('ago', index);
                             const totalPeriodSales = pmsPeriodSales + agoPeriodSales;
                             return (
                               <TableCell 
@@ -945,7 +1254,9 @@ const weeklyReportData = {
                   {/* OPENING STOCK VALUE (PMS+AGO) */}
                   <TableRow>
                     <TableCell className="border border-gray-300 font-medium text-xs">OPENING STOCK VALUE (PMS+AGO)</TableCell>
-                    <TableCell className="border border-gray-300 text-center text-xs font-medium">{formatCurrency(675150.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs font-medium">
+                      {reportData?.summaryData?.openingStockValue ? formatCurrency(reportData.summaryData.openingStockValue) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
@@ -968,7 +1279,9 @@ const weeklyReportData = {
                   <TableRow>
                     <TableCell className="border border-gray-300 font-medium text-xs">TOTAL SUPPLY VALUE</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center text-xs font-medium">{formatCurrency(373950.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs font-medium">
+                      {reportData?.summaryData?.totalSupplyValue ? formatCurrency(reportData.summaryData.totalSupplyValue) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
@@ -991,7 +1304,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 font-medium text-xs">AVAILABLE STOCK VALUE</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center text-xs font-medium">{formatCurrency(1049100.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs font-medium">
+                      {reportData?.summaryData?.availableStockValue ? formatCurrency(reportData.summaryData.availableStockValue) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
@@ -1014,7 +1329,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center text-xs font-medium">{formatCurrency(450425.46)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs font-medium">
+                      {reportData?.summaryData?.salesValue ? formatCurrency(reportData.summaryData.salesValue) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
@@ -1037,7 +1354,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center text-xs font-medium">{formatCurrency(598674.54)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs font-medium">
+                      {reportData?.summaryData?.closingStockValue ? formatCurrency(reportData.summaryData.closingStockValue) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
@@ -1060,7 +1379,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-medium">{formatCurrency(1049100.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-medium">
+                      {reportData?.summaryData?.expectedProfit ? formatCurrency(reportData.summaryData.expectedProfit) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
@@ -1074,16 +1395,18 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
                   </TableRow>
 
-                  {/* CURRENT PROFIT */}
+                  {/* SALES PROFIT */}
                   <TableRow>
-                    <TableCell className="border border-gray-300 font-medium text-xs">CURRENT PROFIT</TableCell>
+                    <TableCell className="border border-gray-300 font-medium text-xs">SALES PROFIT</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-medium">{formatCurrency(179751.51)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-medium">
+                      {reportData?.summaryData?.salesProfit ? formatCurrency(reportData.summaryData.salesProfit) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
@@ -1106,7 +1429,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs font-medium">{formatCurrency(139.77)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs font-medium">
+                      {reportData?.summaryData?.undergroundGains ? formatCurrency(reportData.summaryData.undergroundGains) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
@@ -1129,8 +1454,15 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs font-medium bg-red-300">{formatCurrency(45.61)}</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-300 text-xs font-medium">
+                      {reportData?.summaryData?.winFallValue !== undefined ? formatCurrency(reportData.summaryData.winFallValue) : formatCurrency(0.00)}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs font-medium">
+                      {(() => {
+                        const shortfall = reportData?.summaryData && typeof reportData.summaryData.actualVariance === 'number' ? reportData.summaryData.actualVariance : 0;
+                        return shortfall !== 0 ? formatCurrency(Math.abs(shortfall)) : '-';
+                      })()}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
@@ -1153,7 +1485,9 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">{formatCurrency(1250.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">
+                      {reportData?.summaryData?.advances ? formatCurrency(reportData.summaryData.advances) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
@@ -1176,10 +1510,14 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">{formatCurrency(850.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">
+                      {reportData?.summaryData?.creditSales ? formatCurrency(reportData.summaryData.creditSales) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">
+                      {reportData?.summaryData?.creditSales ? formatCurrency(reportData.summaryData.creditSales) : formatCurrency(0.00)}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
                   </TableRow>
@@ -1199,16 +1537,50 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs font-medium">{formatCurrency(320.50)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs font-medium">
+                      {(() => {
+                        // Handle different potential formats for momoShortageRefund
+                        const momoShortage = reportData?.summaryData?.momoShortageRefund;
+                        if (typeof momoShortage === 'number') return formatCurrency(momoShortage);
+                        if (typeof momoShortage === 'string' && momoShortage !== 'To be implemented later') return momoShortage;
+                        return formatCurrency(0.00);
+                      })()}
+                    </TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
                   </TableRow>
 
-                  {/* MOMO/SHORTAGE PAYMENT */}
+                  {/* EXPECTED LODGEMENT */}
                   <TableRow>
-                    <TableCell className="border border-gray-300 font-medium text-xs">MOMO/SHORTAGE PAYMENT</TableCell>
+                    <TableCell className="border border-gray-300 font-medium text-xs">EXPECTED LODGEMENT</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs font-medium">
+                      {reportData?.summaryData?.expectedLodgement ? formatCurrency(reportData.summaryData.expectedLodgement) : '-'}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">
+                      {reportData?.summaryData?.expectedLodgement ? formatCurrency(reportData.summaryData.expectedLodgement) : '-'}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* ACTUAL LODGEMENT */}
+                  <TableRow>
+                    <TableCell className="border border-gray-300 font-medium text-xs">ACTUAL LODGEMENT</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
@@ -1222,7 +1594,63 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs font-medium">{formatCurrency(320.50)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs font-medium">
+                      {reportData?.summaryData?.actualLodgement ? formatCurrency(reportData.summaryData.actualLodgement) : '-'}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">
+                      {reportData?.summaryData?.actualLodgement ? formatCurrency(reportData.summaryData.actualLodgement) : '-'}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* DIFFERENCE (VARIANCE) */}
+                  <TableRow>
+                    <TableCell className="border border-gray-300 font-medium text-xs">DIFFERENCE (VARIANCE)</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">
+                      {reportData?.summaryData?.difference ? formatCurrency(reportData.summaryData.difference) : '-'}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">
+                      {reportData?.summaryData?.difference ? formatCurrency(reportData.summaryData.difference) : '-'}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">
+                      {reportData?.summaryData?.difference ? formatCurrency(reportData.summaryData.difference) : '-'}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* ADVANCE REFUND */}
+                  <TableRow>
+                    <TableCell className="border border-gray-300 font-medium text-xs">ADVANCE REFUND</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-green-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-red-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs font-medium">
+                      {reportData?.summaryData?.advanceRefund ? formatCurrency(reportData.summaryData.advanceRefund) : '-'}
+                    </TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
@@ -1245,7 +1673,7 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-purple-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">{formatCurrency(1250.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">{formatCurrency(0.00)}</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
                   </TableRow>
@@ -1268,7 +1696,7 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">{formatCurrency(850.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs font-medium">{formatCurrency(0.00)}</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs">-</TableCell>
                   </TableRow>
 
@@ -1291,7 +1719,7 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">{formatCurrency(448305.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">{formatCurrency(0.00)}</TableCell>
                   </TableRow>
 
                   {/* ACTUAL LODGEMENT */}
@@ -1313,7 +1741,7 @@ const weeklyReportData = {
                     <TableCell className="border border-gray-300 text-center bg-orange-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
                     <TableCell className="border border-gray-300 text-center bg-pink-100 text-xs">-</TableCell>
-                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">{formatCurrency(447985.00)}</TableCell>
+                    <TableCell className="border border-gray-300 text-center bg-yellow-100 text-xs font-medium">{formatCurrency(0.00)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -1368,7 +1796,7 @@ const weeklyReportData = {
                   <TableCell className="border border-gray-300 font-bold text-xs">TOTALS</TableCell>
                   <TableCell className="border border-gray-300 text-center text-xs font-bold">All Periods</TableCell>
                   <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs font-bold">
-                    ₵{(pricingPeriodsData.pms.priceChanges.reduce((sum, period, index) => 
+                    ₵{(pricingPeriodsData.pms.priceChanges.reduce((sum, _, index) => 
                       sum + calculatePeriodPrice('pms', index), 0) / getNumberOfPricePeriods()).toFixed(2)} (Avg)
                   </TableCell>
                   <TableCell className="border border-gray-300 text-center bg-blue-100 text-xs font-bold">
@@ -1378,7 +1806,7 @@ const weeklyReportData = {
                     {formatCurrency(calculateTotalSalesAtUnitPrice('pms'))}
                   </TableCell>
                   <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-bold">
-                    ₵{(pricingPeriodsData.ago.priceChanges.reduce((sum, period, index) => 
+                    ₵{(pricingPeriodsData.ago.priceChanges.reduce((sum, _, index) => 
                       sum + calculatePeriodPrice('ago', index), 0) / getNumberOfPricePeriods()).toFixed(2)} (Avg)
                   </TableCell>
                   <TableCell className="border border-gray-300 text-center bg-green-100 text-xs font-bold">
@@ -1481,8 +1909,8 @@ const weeklyReportData = {
               <h4 className="font-medium mb-3">Week Selection Configuration</h4>
               <div className="bg-gray-50 p-3 rounded text-xs font-mono">
                 <pre>{JSON.stringify({
-                  currentWeek: getCurrentWeekOfMonth(),
-                  availableWeeks: availableWeeks.length,
+                  startDate: startDate,
+                  endDate: endDate,
                   selectedWeek: currentWeekInfo.week,
                   dateRange: currentWeekInfo.dateRange,
                   weekMultiplier: getWeekSpecificMultiplier().toFixed(2)
@@ -1494,7 +1922,7 @@ const weeklyReportData = {
               <ul className="text-sm space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="text-green-600">✓</span>
-                  <span><strong>Auto Week Detection:</strong> Shows weeks 1 through current week of month</span>
+                  <span><strong>Date-Based Selection:</strong> Start date automatically determines month and week</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600">✓</span>
@@ -1506,11 +1934,11 @@ const weeklyReportData = {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600">✓</span>
-                  <span><strong>Date Calculation:</strong> Automatic date ranges for each week</span>
+                  <span><strong>Auto End Date:</strong> End date automatically calculated from start date</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600">✓</span>
-                  <span><strong>Current Week Indicator:</strong> Highlights current week status</span>
+                  <span><strong>Current Week Detection:</strong> Highlights when selected dates match current week</span>
                 </li>
               </ul>
             </div>

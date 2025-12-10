@@ -434,7 +434,7 @@ export const formatDate = (dateString: string | undefined | null): string => {
     // If valid date, format as '5 Sept 2025'
     if (!isNaN(dateObj.getTime())) {
       const day = dateObj.getDate();
-      const month = dateObj.toLocaleString('en-US', { month: 'short' });
+      const month = dateObj.toLocaleString('en-GH', { month: 'short' });
       const year = dateObj.getFullYear();
       return `${day} ${month} ${year}`;
     }

@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ShareModal } from './ShareModal';
 import { 
@@ -18,18 +20,38 @@ import {
   TrendingDown,
   Loader2
 } from 'lucide-react';
-import { 
-  getCurrentWeekOfMonth,
-  getCurrentMonthYear,
-  generateAvailableMonths,
-  generateWeeksForMonth,
-  getWeekDateRange,
-  getWeekTimePeriod,
+import {
   formatCurrency,
   formatNumber
 } from '../utils/dateUtils';
 import { useWeeklySalesAnalysis } from '../hooks/useWeeklySalesAnalysis';
+import { WeeklySalesAnalysisResponse } from '../services/weeklySalesAnalysisService';
 import { toast } from 'sonner';
+
+// Helper function to get user station info from localStorage
+const getUserStationInfo = () => {
+  try {
+    const user = localStorage.getItem('ktc_user');
+    if (user) {
+      const userData = JSON.parse(user);
+      return {
+        stationName: userData.station?.stationName || 'KTC KPONE',
+        stationId: userData.station?.stationId || null,
+        userName: userData.name || userData.username || 'Unknown User',
+        role: userData.role || 'USER'
+      };
+    }
+  } catch (error) {
+    console.error('Error parsing user data from localStorage:', error);
+  }
+  
+  return {
+    stationName: 'KTC KPONE',
+    stationId: null,
+    userName: 'Unknown User',
+    role: 'USER'
+  };
+};
 
 // Base sales data patterns for different months/weeks
 const salesDataPatterns = {
@@ -76,7 +98,64 @@ const salesDataPatterns = {
   }
 };
 
-// Generate stable sales data based on selected month/week using deterministic patterns
+// Generate stable sales data based on date range
+const generateLocalWeeklySalesDataFromDates = (startDate: string, endDate: string, numWeeks: number) => {
+  const startDateObj = new Date(startDate);
+  const endDateObj = new Date(endDate);
+  const monthKey = startDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toLowerCase().replace(' ', '-');
+  
+  const weeks = [];
+  const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+  const weeksToGenerate = Math.max(1, Math.min(numWeeks, Math.ceil(daysDiff / 7)));
+  
+  for (let i = 0; i < weeksToGenerate; i++) {
+    const weekStart = new Date(startDateObj);
+    weekStart.setDate(startDateObj.getDate() + (i * 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    // Ensure week end doesn't exceed the selected end date
+    if (weekEnd > endDateObj) {
+      weekEnd.setTime(endDateObj.getTime());
+    }
+    
+    // Generate deterministic sales data based on week index
+    const baseValue = 15000 + ((i + monthKey.length) * 500);
+    const variation = (Math.sin(i * 0.5) * 0.2); // Smoother variation
+    const totalSales = baseValue * (1 + variation);
+    
+    const pmsRatio = 0.45 + (Math.sin(i * 0.3) * 0.1); // 35-55% PMS
+    const pms = totalSales * pmsRatio;
+    const ago = totalSales - pms;
+    
+    const prevWeek = i > 0 ? weeks[i - 1] : null;
+    const diffPms = prevWeek ? pms - prevWeek.pms : 0;
+    const diffAgo = prevWeek ? ago - prevWeek.ago : 0;
+    const overallDiff = prevWeek ? totalSales - prevWeek.totalSales : 0;
+    const percentChange = prevWeek && prevWeek.totalSales > 0 ? ((totalSales - prevWeek.totalSales) / prevWeek.totalSales) * 100 : 0;
+    
+    weeks.push({
+      month: startDateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+      week: `WEEK ${i + 1}`,
+      timePeriod: `${weekStart.getDate()}${getOrdinalSuffix(weekStart.getDate())} - ${weekEnd.getDate()}${getOrdinalSuffix(weekEnd.getDate())} ${weekStart.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}`,
+      totalSales: Number(totalSales.toFixed(2)),
+      pms: Number(pms.toFixed(2)),
+      ago: Number(ago.toFixed(2)),
+      diffPms: Number(diffPms.toFixed(2)),
+      diffAgo: Number(diffAgo.toFixed(2)),
+      overallDiff: Number(overallDiff.toFixed(2)),
+      percentChange: Number(percentChange.toFixed(2)),
+      isHighlighted: false,
+      bgColor: '',
+      monthColor: getMonthColor(startDateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()),
+      trend: percentChange > 5 ? 'up' : percentChange < -5 ? 'down' : 'stable'
+    });
+  }
+  
+  return weeks;
+};
+
+// Keep original function for backward compatibility
 const generateLocalWeeklySalesData = (selectedMonthData: any, selectedWeekData: any) => {
   if (!selectedMonthData || !selectedWeekData) return [];
   
@@ -108,7 +187,7 @@ const generateLocalWeeklySalesData = (selectedMonthData: any, selectedWeekData: 
     const percentChange = prevWeek && prevWeek.totalSales > 0 ? Number(((weekData.totalSales - prevWeek.totalSales) / prevWeek.totalSales * 100).toFixed(2)) : 0;
     
     // Get time period for the week
-    const timePeriod = getWeekTimePeriod(weekNumber, selectedMonthData.year, selectedMonthData.monthIndex);
+    const timePeriod = `Week ${weekNumber}`;
     
     contextWeeks.push({
       month: selectedMonthData.month,
@@ -123,7 +202,8 @@ const generateLocalWeeklySalesData = (selectedMonthData: any, selectedWeekData: 
       percentChange: percentChange,
       isHighlighted: isSelectedWeek,
       bgColor: isSelectedWeek ? 'bg-yellow-100' : (weekData.trend === 'peak' ? 'bg-green-100' : (weekData.trend === 'down' && Math.abs(percentChange) > 10 ? 'bg-orange-100' : '')),
-      monthColor: getMonthColor(selectedMonthData.month)
+      monthColor: getMonthColor(selectedMonthData.month),
+      trend: weekData.trend || 'stable'
     });
   }
   
@@ -193,7 +273,7 @@ const generateStableFallbackData = (selectedMonthData: any, selectedWeekData: an
     const ago = totalSales - pms;
     
     const isSelectedWeek = i === weekNumber;
-    const timePeriod = getWeekTimePeriod(i, selectedMonthData.year, selectedMonthData.monthIndex);
+    const timePeriod = `Week ${i}`;
     
     const prevWeek = i > 1 && weeks.length > 0 ? weeks[weeks.length - 1] : null;
     const diffPms = prevWeek ? pms - prevWeek.pms : 0;
@@ -214,7 +294,8 @@ const generateStableFallbackData = (selectedMonthData: any, selectedWeekData: an
       percentChange: Number(percentChange.toFixed(2)),
       isHighlighted: isSelectedWeek,
       bgColor: isSelectedWeek ? 'bg-yellow-100' : '',
-      monthColor: getMonthColor(selectedMonthData.month)
+      monthColor: getMonthColor(selectedMonthData.month),
+      trend: percentChange > 5 ? 'up' : percentChange < -5 ? 'down' : 'stable'
     });
   }
   
@@ -235,47 +316,60 @@ export function WeeklySalesAnalysis() {
     clearError,
     refreshData,
     comparisonData,
-    setComparisonData
+    fetchBackendAnalysis,
+    backendAnalysisData
   } = useWeeklySalesAnalysis();
 
-  // Get current month and year for defaults
-  const currentMonthYear = getCurrentMonthYear();
-  const availableMonths = generateAvailableMonths();
-  const currentMonthValue = availableMonths.find(m => 
-    m.month === currentMonthYear.month && m.year === currentMonthYear.year
-  )?.value || availableMonths[0]?.value;
+  // Date range state for user selection
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0]; // YYYY-MM-DD format
+  };
   
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthValue);
+  const getWeekAgoDate = () => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return weekAgo.toISOString().split('T')[0];
+  };
   
-  // Get weeks for selected month
-  const selectedMonthData = availableMonths.find(m => m.value === selectedMonth);
-  const availableWeeks = selectedMonthData 
-    ? generateWeeksForMonth(selectedMonthData.year, selectedMonthData.monthIndex)
-    : [];
+  const [startDate, setStartDate] = useState(getWeekAgoDate());
+  const [endDate, setEndDate] = useState(getCurrentDate());
   
-  // Default to current week if in current month, otherwise last available week
-  const getDefaultWeek = useMemo(() => {
-    if (selectedMonthData?.month === currentMonthYear.month && selectedMonthData?.year === currentMonthYear.year) {
-      return availableWeeks[availableWeeks.length - 1]?.value; // Current week
+  // Calculate number of weeks from API data or date range
+  const numberOfWeeks = useMemo(() => {
+    if (backendAnalysisData && (backendAnalysisData as any).weeklyAnalysis) {
+      return (backendAnalysisData as any).weeklyAnalysis.length;
     }
-    return availableWeeks[availableWeeks.length - 1]?.value; // Last week of selected month
-  }, [selectedMonthData, currentMonthYear, availableWeeks]);
+    // Fallback calculation based on date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return Math.max(1, Math.ceil(diffDays / 7));
+    }
+    return 1;
+  }, [startDate, endDate, backendAnalysisData]);
+
   
-  const [selectedWeek, setSelectedWeek] = useState(getDefaultWeek || 'current');
-  const [selectedPeriod, setSelectedPeriod] = useState('current');
+  // Date validation and change handlers
+  const handleStartDateChange = (newStartDate: string) => {
+    setStartDate(newStartDate);
+    // Ensure end date is not before start date
+    if (endDate && new Date(newStartDate) > new Date(endDate)) {
+      const newEndDate = new Date(newStartDate);
+      newEndDate.setDate(newEndDate.getDate() + 7); // Default to 1 week range
+      setEndDate(newEndDate.toISOString().split('T')[0]);
+    }
+  };
   
-  // Update selected week when month changes
-  const handleMonthChange = (newMonth: string) => {
-    setSelectedMonth(newMonth);
-    const newMonthData = availableMonths.find(m => m.value === newMonth);
-    if (newMonthData) {
-      const newWeeks = generateWeeksForMonth(newMonthData.year, newMonthData.monthIndex);
-      // Set to current week if current month, otherwise last week of month
-      if (newMonthData.month === currentMonthYear.month && newMonthData.year === currentMonthYear.year) {
-        setSelectedWeek(newWeeks[newWeeks.length - 1]?.value || newWeeks[0]?.value);
-      } else {
-        setSelectedWeek(newWeeks[newWeeks.length - 1]?.value || newWeeks[0]?.value);
-      }
+  const handleEndDateChange = (newEndDate: string) => {
+    setEndDate(newEndDate);
+    // Ensure start date is not after end date
+    if (startDate && new Date(startDate) > new Date(newEndDate)) {
+      const newStartDate = new Date(newEndDate);
+      newStartDate.setDate(newStartDate.getDate() - 7); // Default to 1 week range
+      setStartDate(newStartDate.toISOString().split('T')[0]);
     }
   };
 
@@ -289,62 +383,85 @@ export function WeeklySalesAnalysis() {
     }
   };
 
-  // Handle generate analysis for current selection
+  // Handle generate analysis for current selection - fetch from backend
   const handleGenerateAnalysis = async () => {
-    const selectedWeekData = availableWeeks.find(w => w.value === selectedWeek);
-    if (!selectedWeekData || !selectedMonthData) {
-      toast.error('Please select a valid week and month');
+    console.log('🚀 [WeeklySalesAnalysis] handleGenerateAnalysis called');
+    console.log('📅 Current dates:', { startDate, endDate });
+    
+    if (!startDate || !endDate) {
+      console.warn('⚠️ Missing dates:', { startDate, endDate });
+      toast.error('Please select valid start and end dates');
       return;
     }
 
-    const weekInfo = {
-      month: selectedMonthData.month,
-      week: `WEEK ${selectedWeekData.weekNumber}`,
-      weekNumber: selectedWeekData.weekNumber,
-      year: selectedMonthData.year,
-      monthIndex: selectedMonthData.monthIndex,
-      dateRange: getWeekDateRange(selectedWeekData.weekNumber, selectedMonthData.year, selectedMonthData.monthIndex),
-      startDate: '',
-      endDate: '',
-      timePeriod: getWeekTimePeriod(selectedWeekData.weekNumber, selectedMonthData.year, selectedMonthData.monthIndex)
-    };
+    // Validate date range
+    if (new Date(startDate) > new Date(endDate)) {
+      console.warn('⚠️ Invalid date range:', { startDate, endDate });
+      toast.error('Start date cannot be after end date');
+      return;
+    }
 
     try {
-      const result = await generateAnalysis(weekInfo, 'station-001'); // Default station for demo
+      // Get station info from localStorage
+      const stationInfo = getUserStationInfo();
+      const stationName = stationInfo.stationName;
+      
+      console.log('🏪 Station info:', stationInfo);
+      console.log('🔄 Preparing to fetch weekly sales analysis:', {
+        stationName,
+        startDate,
+        endDate,
+        dateRange: `${startDate} to ${endDate}`,
+        estimatedWeeks: numberOfWeeks
+      });
+      
+      console.log('📞 Calling fetchBackendAnalysis...');
+
+      // Fetch data from backend
+      const result = await fetchBackendAnalysis(stationName, startDate, endDate);
+      
       if (result) {
-        toast.success('Weekly sales analysis generated successfully');
+        toast.success(`Weekly sales analysis loaded from backend for ${stationName}`);
+        console.log('✅ Backend data loaded:', {
+          weeks: (result as any).weeklyAnalysis?.length || 0,
+          totalSales: (result as any).totalSales,
+          dateRange: `${(result as any).analysisStartDate} to ${(result as any).analysisEndDate}`
+        });
+      } else {
+        // Fallback to mock data generation if backend fails
+        console.log('⚠️ Backend fetch failed, using local data generation');
+        const startDateObj = new Date(startDate);
+        const weekInfo = {
+          startDate,
+          endDate,
+          dateRange: `${startDate} to ${endDate}`,
+          month: startDateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+          year: startDateObj.getFullYear(),
+          estimatedWeeks: numberOfWeeks
+        };
+
+        const mockResult = await generateAnalysis(weekInfo, 'station-001');
+        if (mockResult) {
+          toast.success('Weekly sales analysis generated locally (backend unavailable)');
+        }
       }
     } catch (err) {
-      toast.error('Failed to generate analysis');
+      console.error('❌ Error in handleGenerateAnalysis:', err);
+      toast.error('Failed to fetch weekly sales analysis');
     }
   };
   
-  // Update selected week when available weeks change
-  useEffect(() => {
-    if (availableWeeks.length > 0 && !availableWeeks.find(w => w.value === selectedWeek)) {
-      // If current selected week is not available in new weeks, select default
-      setSelectedWeek(getDefaultWeek || availableWeeks[0]?.value);
-    }
-  }, [availableWeeks, selectedWeek, getDefaultWeek]);
+
   
-  // Get current week info based on selection
+  // Get current date range info for display
   const getCurrentWeekInfo = () => {
-    const selectedWeekData = availableWeeks.find(week => week.value === selectedWeek);
-    if (selectedWeekData) {
-      return {
-        month: selectedWeekData.month,
-        week: `WEEK ${selectedWeekData.weekNumber}`,
-        dateRange: getWeekDateRange(selectedWeekData.weekNumber, selectedWeekData.year, selectedWeekData.monthIndex)
-      };
-    }
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
     
-    // Fallback to current week
-    const { month } = getCurrentMonthYear();
-    const currentWeekNum = getCurrentWeekOfMonth();
     return {
-      month: month,
-      week: `WEEK ${currentWeekNum}`,
-      dateRange: getWeekDateRange(currentWeekNum)
+      month: startDateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+      week: numberOfWeeks === 1 ? 'WEEK 1' : `${numberOfWeeks} WEEKS`,
+      dateRange: `${startDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     };
   };
 
@@ -354,10 +471,7 @@ export function WeeklySalesAnalysis() {
     return formatNumber(value);
   };
 
-  const formatCurrencySafe = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined || isNaN(amount)) return '-';
-    return formatCurrency(amount);
-  };
+
 
   const formatPercentage = (value: number | null | undefined) => {
     if (value === null || value === undefined || isNaN(value)) return '-';
@@ -378,9 +492,8 @@ export function WeeklySalesAnalysis() {
       const { PDFExportService, createExportData } = await import('../utils/pdfExport');
       
       try {
-        // Get current sales data using existing functions
-        const selectedWeekData = availableWeeks.find(w => w.value === selectedWeek);
-        const weeklySalesDataForExport = generateLocalWeeklySalesData(selectedMonthData, selectedWeekData);
+        // Get current sales data using date-based generation
+        const weeklySalesDataForExport = generateLocalWeeklySalesDataFromDates(startDate, endDate, numberOfWeeks);
         
         // Validate data before proceeding
         if (!weeklySalesDataForExport || weeklySalesDataForExport.length === 0) {
@@ -470,7 +583,7 @@ export function WeeklySalesAnalysis() {
           { 
             tableData, 
             summaryData,
-            selectedWeek: selectedMonth 
+            selectedPeriod: `${startDate} to ${endDate}` 
           }
         );
         
@@ -487,9 +600,8 @@ export function WeeklySalesAnalysis() {
       const { ExcelExportService, createExcelExportData } = await import('../utils/excelExport');
       
       try {
-        // Get current sales data using existing functions
-        const selectedWeekData = availableWeeks.find(w => w.value === selectedWeek);
-        const weeklySalesDataForExport = generateLocalWeeklySalesData(selectedMonthData, selectedWeekData);
+        // Get current sales data using date-based generation
+        const weeklySalesDataForExport = generateLocalWeeklySalesDataFromDates(startDate, endDate, numberOfWeeks);
         
         // Validate data before proceeding
         if (!weeklySalesDataForExport || weeklySalesDataForExport.length === 0) {
@@ -603,7 +715,7 @@ export function WeeklySalesAnalysis() {
             tableData, 
             summaryData,
             chartData: chartDataForExport,
-            selectedWeek: selectedMonth 
+            selectedPeriod: `${startDate} to ${endDate}` 
           }
         );
         
@@ -639,33 +751,127 @@ export function WeeklySalesAnalysis() {
     dateRange: 'Jan 1 - Jan 7, 2025'
   };
   
-  // Generate stable data based on selections using useMemo to prevent infinite re-renders
-  const selectedWeekData = useMemo(() => 
-    availableWeeks.find(w => w.value === selectedWeek), 
-    [availableWeeks, selectedWeek]
-  );
+
   
-  // Create a stable key for data caching to prevent rapid changes
-  const dataKey = useMemo(() => {
-    if (!selectedMonthData || !selectedWeekData) return '';
-    return `${selectedMonthData.month}-${selectedMonthData.year}-${selectedWeekData.weekNumber}`;
-  }, [selectedMonthData, selectedWeekData]);
-  
+  // Use backend data if available, otherwise fall back to local generation
   const weeklySalesData = useMemo(() => {
-    if (!selectedMonthData || !selectedWeekData || !dataKey) return [];
-    return generateLocalWeeklySalesData(selectedMonthData, selectedWeekData);
-  }, [selectedMonthData, selectedWeekData, dataKey]);
+    console.log('🔄 [weeklySalesData] useMemo triggered with:', {
+      hasBackendData: !!backendAnalysisData,
+      hasComparisonData: !!comparisonData,
+      comparisonDataLength: comparisonData?.length || 0,
+      backendWeeks: (backendAnalysisData as any)?.weeklyAnalysis?.length || 0
+    });
+    
+    // Check if we have backend data
+    if (backendAnalysisData && comparisonData && comparisonData.length > 0) {
+      console.log('✅ Using backend data for table:', {
+        backendWeeks: (backendAnalysisData as any).weeklyAnalysis?.length || 0,
+        comparisonDataLength: comparisonData.length,
+        totalSales: (backendAnalysisData as any).totalSales,
+        firstWeekSample: comparisonData[0]
+      });
+      
+      // Transform comparison data to match the expected format
+      return comparisonData.map((week, index) => ({
+        month: week.month,
+        week: `WEEK ${week.weekNumber}`,
+        timePeriod: week.timePeriod,
+        totalSales: week.totalSales,
+        pms: week.pmsVolume,
+        ago: week.agoVolume,
+        diffPms: index > 0 ? week.pmsVolume - (comparisonData[index - 1]?.pmsVolume || 0) : 0,
+        diffAgo: index > 0 ? week.agoVolume - (comparisonData[index - 1]?.agoVolume || 0) : 0,
+        overallDiff: week.difference,
+        percentChange: week.percentChange,
+        isHighlighted: week.isHighlighted,
+        bgColor: week.bgColor || (week.isHighlighted ? 'bg-yellow-100' : ''),
+        monthColor: week.monthColor,
+        trend: week.trend || (week.percentChange > 5 ? 'up' : week.percentChange < -5 ? 'down' : 'stable')
+      }));
+    }
+    
+    // Fallback to local data generation based on date range
+    if (!startDate || !endDate) return [];
+    console.log('📊 Using local generated data for table');
+    return generateLocalWeeklySalesDataFromDates(startDate, endDate, numberOfWeeks);
+  }, [startDate, endDate, numberOfWeeks, backendAnalysisData, comparisonData]);
   
   const chartData = useMemo(() => {
     if (!weeklySalesData || weeklySalesData.length === 0) return [];
     return generateChartData(weeklySalesData);
   }, [weeklySalesData]);
 
-  // Update comparison data when weekly sales data changes (removed to prevent circular updates)
-  // The comparison data is now managed within the hook itself
+  // Auto-fetch backend data when both start and end dates are set
+  useEffect(() => {
+    console.log('🔄 [Auto-fetch Effect] Date range changed:', { startDate, endDate });
+    
+    const autoFetchBackendData = async () => {
+      // Auto-fetch when both dates are set and we have a valid date range
+      if (startDate && endDate) {
+        const isValidDateRange = new Date(startDate) <= new Date(endDate);
+        
+        console.log('🔍 Auto-fetch conditions:', {
+          startDate,
+          endDate,
+          isValidDateRange,
+          hasBackendData: !!backendAnalysisData,
+          currentReferenceDate: (backendAnalysisData as any)?.referenceDate,
+          expectedReferenceDate: `${startDate} to ${endDate}`
+        });
+        
+        if (isValidDateRange) {
+          // Check if we need fresh data for this date range
+          const currentReferenceDate = (backendAnalysisData as any)?.referenceDate;
+          const expectedReferenceDate = `${startDate} to ${endDate}`;
+          const needsFreshData = !backendAnalysisData || currentReferenceDate !== expectedReferenceDate;
+          
+          if (needsFreshData && !isLoading && !isGenerating) {
+            console.log('🚀 Auto-fetching backend data for date range:', startDate, 'to', endDate);
+            await handleGenerateAnalysis();
+          } else {
+            console.log('⏸️ Skipping auto-fetch:', {
+              reason: !needsFreshData ? 'data already exists for this date range' : 
+                      isLoading ? 'already loading' :
+                      isGenerating ? 'already generating' : 'unknown'
+            });
+          }
+        }
+      } else {
+        console.log('⏸️ Skipping auto-fetch: missing start or end date');
+      }
+    };
 
-  // Calculate summary statistics from stable data using useMemo
+    // Small delay to avoid rapid API calls when user is selecting dates
+    const timer = setTimeout(autoFetchBackendData, 1000);
+    return () => clearTimeout(timer);
+  }, [startDate, endDate]); // Auto-fetch whenever date range changes
+
+  // Calculate summary statistics from backend or stable data using useMemo
   const summaryStats = useMemo(() => {
+    // Use backend summary data if available
+    if (backendAnalysisData) {
+      const backendData = backendAnalysisData as any;
+      const maxSales = backendData.bestWeekSales || 0;
+      const minSales = backendData.worstWeekSales || 0;
+      const avgSales = backendData.averageWeeklySales || 0;
+      
+      // Find corresponding weeks for display
+      const maxWeek = weeklySalesData.find(w => w.totalSales === maxSales) || weeklySalesData[0];
+      const minWeek = weeklySalesData.find(w => w.totalSales === minSales) || weeklySalesData[0];
+      const validSales = weeklySalesData;
+      
+      console.log('📈 Using backend summary stats:', {
+        maxSales,
+        minSales,
+        avgSales,
+        totalGrowth: backendData.totalGrowth,
+        weeks: validSales.length
+      });
+      
+      return { maxSales, minSales, avgSales, maxWeek, minWeek, validSales };
+    }
+    
+    // Fallback to calculated stats from local data
     const validSales = weeklySalesData.filter(w => w && typeof w.totalSales === 'number' && !isNaN(w.totalSales));
     const maxSales = validSales.length > 0 ? Math.max(...validSales.map(w => w.totalSales)) : 0;
     const minSales = validSales.length > 0 ? Math.min(...validSales.map(w => w.totalSales)) : 0;
@@ -675,7 +881,7 @@ export function WeeklySalesAnalysis() {
     const minWeek = validSales.find(w => w.totalSales === minSales);
     
     return { maxSales, minSales, avgSales, maxWeek, minWeek, validSales };
-  }, [weeklySalesData]);
+  }, [weeklySalesData, backendAnalysisData]);
   
   const { maxSales, minSales, avgSales, maxWeek, minWeek, validSales } = summaryStats;
 
@@ -685,49 +891,51 @@ export function WeeklySalesAnalysis() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-xl sm:text-2xl font-medium">
-            Weekly Sales Analysis - {currentWeekInfo.month} {currentWeekInfo.week}
+            Weekly Sales Analysis - {startDate} to {endDate}
           </h2>
           <div className="flex items-center gap-4">
             <p className="text-sm sm:text-base text-muted-foreground">
-              {currentWeekInfo.dateRange} - Comparative analysis across multiple weeks with trend visualization
+              Custom date range analysis • {numberOfWeeks} week{numberOfWeeks !== 1 ? 's' : ''} • Comparative trends and performance
             </p>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              🔗 Backend Connected
+            <Badge variant="outline" className={backendAnalysisData ? "bg-green-50 text-green-700 border-green-200" : "bg-orange-50 text-orange-700 border-orange-200"}>
+              {backendAnalysisData ? "🔗 Live Data" : "📝 Mock Data"}
+            </Badge>
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              🏪 {getUserStationInfo().stationName}
             </Badge>
           </div>
         </div>
         
-        {/* Month and Week Selectors */}
+        {/* Date Range Selectors */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Select month" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMonths.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="startDate" className="text-sm font-medium">Start Date:</Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => handleStartDateChange(e.target.value)}
+              className="w-[140px]"
+              max={getCurrentDate()}
+            />
           </div>
           
           <div className="flex items-center gap-2">
-            <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Select week" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableWeeks.map((week) => (
-                  <SelectItem key={week.value} value={week.value}>
-                    {week.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="endDate" className="text-sm font-medium">End Date:</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => handleEndDateChange(e.target.value)}
+              className="w-[140px]"
+              min={startDate}
+              max={getCurrentDate()}
+            />
+          </div>
+          
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span>📅 {numberOfWeeks} week{numberOfWeeks !== 1 ? 's' : ''}</span>
           </div>
           
           <div className="flex gap-2">
@@ -747,15 +955,27 @@ export function WeeklySalesAnalysis() {
             <Button 
               variant="default" 
               size="sm" 
-              onClick={handleGenerateAnalysis}
-              disabled={isGenerating}
+              onClick={() => {
+                console.log('💆 [Button Click] Manual fetch triggered by user');
+                console.log('🔧 Debug Info:', {
+                  startDate,
+                  endDate,
+                  numberOfWeeks,
+                  stationInfo: getUserStationInfo(),
+                  hasBackendData: !!backendAnalysisData,
+                  isLoading,
+                  isGenerating
+                });
+                handleGenerateAnalysis();
+              }}
+              disabled={isGenerating || isLoading}
             >
-              {isGenerating ? (
+              {(isGenerating || isLoading) ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Calendar className="h-4 w-4 mr-2" />
               )}
-              Generate
+              {backendAnalysisData ? "Refresh Data" : "Fetch from API"}
             </Button>
           </div>
         </div>
@@ -769,27 +989,27 @@ export function WeeklySalesAnalysis() {
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="font-medium text-sm">Analysis Period: {currentWeekInfo.month} {currentWeekInfo.week}</p>
-                  <p className="text-xs text-muted-foreground">Date Range: {currentWeekInfo.dateRange}</p>
+                  <p className="font-medium text-sm">Analysis Period: {startDate} to {endDate}</p>
+                  <p className="text-xs text-muted-foreground">Duration: {numberOfWeeks} week{numberOfWeeks !== 1 ? 's' : ''} • Station: {getUserStationInfo().stationName}</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    🔗 API: /reports/weekly-analysis/{getUserStationInfo().stationName}?startDate={startDate}&endDate={endDate}
+                  </p>
                 </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <Badge variant="outline" className="text-xs">
-                Week {availableWeeks.find(w => w.value === selectedWeek)?.weekNumber || 1} of {availableWeeks.length}
+                {numberOfWeeks} Week{numberOfWeeks !== 1 ? 's' : ''} Selected
               </Badge>
               {(() => {
-                const selectedWeekData = availableWeeks.find(w => w.value === selectedWeek);
-                const isCurrentMonthAndYear = selectedMonthData?.month === currentMonthYear.month && 
-                                            selectedMonthData?.year === currentMonthYear.year;
-                const isCurrentWeek = isCurrentMonthAndYear && 
-                                    selectedWeekData?.weekNumber === getCurrentWeekOfMonth();
-                return isCurrentWeek && (
-                  <Badge className="bg-green-100 text-green-800 text-xs">Current Week</Badge>
+                const today = getCurrentDate();
+                const isCurrentPeriod = startDate <= today && endDate >= today;
+                return isCurrentPeriod && (
+                  <Badge className="bg-green-100 text-green-800 text-xs">Current Period</Badge>
                 );
               })()}
               <div className="text-xs text-muted-foreground">
-                {selectedMonthData?.label}: {availableWeeks.length} week{availableWeeks.length !== 1 ? 's' : ''} available
+                Custom range • {Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))} days
               </div>
             </div>
           </div>
@@ -797,25 +1017,42 @@ export function WeeklySalesAnalysis() {
       </Card>
 
       {/* Backend Data Summary */}
-      {analyses.length > 0 && (
+      {(analyses.length > 0 || backendAnalysisData) && (
         <Card className="border-blue-200 bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="text-blue-600">📊</div>
                 <div>
-                  <p className="text-blue-800 font-medium">Backend Data Available</p>
-                  <p className="text-blue-600 text-sm">
-                    {analyses.length} analysis record(s) loaded from backend
-                  </p>
+                  {backendAnalysisData ? (
+                    <>
+                      <p className="text-blue-800 font-medium">Live Backend Data</p>
+                      <p className="text-blue-600 text-sm">
+                        Weekly analysis for {(backendAnalysisData as any).stationName} • {(backendAnalysisData as any).weeklyAnalysis?.length || 0} weeks loaded
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-blue-800 font-medium">Mock Data Available</p>
+                      <p className="text-blue-600 text-sm">
+                        {analyses.length} analysis record(s) loaded from local generation
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge className="bg-blue-100 text-blue-800">
-                  Connected
+                <Badge className={backendAnalysisData ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}>
+                  {backendAnalysisData ? "Live Data" : "Mock Data"}
                 </Badge>
-                {isGenerating && (
+                {isLoading && (
                   <Badge className="bg-orange-100 text-orange-800">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Loading...
+                  </Badge>
+                )}
+                {isGenerating && (
+                  <Badge className="bg-purple-100 text-purple-800">
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                     Generating...
                   </Badge>

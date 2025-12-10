@@ -341,7 +341,8 @@ export function DailySalesEntry() {
                     readOnly
                   />
                   <p className="text-xs text-green-600 font-normal">
-                    Calculated: Opening ({entry.openSL || 0}) + Supply ({entry.supply || 0}) + Overage/Shortage ({entry.overageShortageL || 0}) = {entry.availableL || 0}
+                    Calculated: Opening ({entry.openSL || 0}) + Supply ({entry.supply || 0}) = {entry.availableL || 0}
+                    {/* + Overage/Shortage ({entry.overageShortageL || 0})*/}
                   </p>
                 </div>
 

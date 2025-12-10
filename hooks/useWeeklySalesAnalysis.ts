@@ -38,6 +38,11 @@ import {
   getWeekDateRange,
   getWeekTimePeriod
 } from '../utils/dateUtils';
+import { 
+  weeklySalesAnalysisService, 
+  WeeklySalesAnalysisResponse,
+  WeeklyAnalysisItem 
+} from '../services/weeklySalesAnalysisService';
 
 interface UseWeeklySalesAnalysisReturn {
   // Data state
@@ -45,6 +50,9 @@ interface UseWeeklySalesAnalysisReturn {
   currentAnalysis: WeeklySalesAnalysisData | null;
   analytics: WeeklySalesAnalytics | null;
   comparisonData: WeeklyComparisonData[];
+  
+  // Backend data
+  backendAnalysisData: WeeklySalesAnalysisResponse | null;
   
   // Loading states
   isLoading: boolean;
@@ -75,7 +83,8 @@ interface UseWeeklySalesAnalysisReturn {
   publishAnalysis: (id: string) => Promise<boolean>;
   archiveAnalysis: (id: string) => Promise<boolean>;
   
-  // Data generation and comparison
+  // Backend integration
+  fetchBackendAnalysis: (stationName: string, startDate: string, endDate: string) => Promise<WeeklySalesAnalysisResponse | null>;
   
   // Utility functions
   setFilters: (filters: Partial<WeeklySalesAnalysisFilter>) => void;
@@ -363,6 +372,9 @@ export const useWeeklySalesAnalysis = (): UseWeeklySalesAnalysisReturn => {
   const [analytics, setAnalytics] = useState<WeeklySalesAnalytics | null>(null);
   const [comparisonData, setComparisonData] = useState<WeeklyComparisonData[]>([]);
   
+  // Backend data state
+  const [backendAnalysisData, setBackendAnalysisData] = useState<WeeklySalesAnalysisResponse | null>(null);
+  
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -648,6 +660,81 @@ export const useWeeklySalesAnalysis = (): UseWeeklySalesAnalysisReturn => {
     }
   }, [currentAnalysis]);
 
+  // Backend integration
+  const fetchBackendAnalysis = useCallback(async (
+    stationName: string, 
+    startDate: string, 
+    endDate: string
+  ): Promise<WeeklySalesAnalysisResponse | null> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔄 Fetching backend weekly analysis data:', {
+        stationName,
+        startDate,
+        endDate
+      });
+      
+      const response = await weeklySalesAnalysisService.fetchWeeklySalesAnalysis(
+        stationName, 
+        startDate, 
+        endDate
+      );
+      
+      setBackendAnalysisData(response);
+      
+      // Transform backend data to comparison format
+      console.log('🔧 Transforming backend data to comparison format...');
+      const tableData = weeklySalesAnalysisService.transformToTableData(response);
+      console.log('📋 Transform result:', {
+        tableDataLength: tableData.length,
+        firstRow: tableData[0],
+        sampleData: tableData.slice(0, 2)
+      });
+      
+      const mappedComparisonData = tableData.map((row, index) => ({
+        weekNumber: index + 1,
+        month: row.month,
+        totalSales: row.totalSales,
+        pmsVolume: row.pms,
+        agoVolume: row.ago,
+        salesValue: row.totalSales * 18.0, // Estimated value
+        difference: row.overallDiff,
+        percentChange: row.percentChange,
+        trend: (row.percentChange > 5 ? 'up' : row.percentChange < -5 ? 'down' : 'stable') as 'up' | 'down' | 'stable' | 'peak',
+        isHighlighted: false,
+        bgColor: row.bgColor,
+        monthColor: row.monthColor,
+        timePeriod: row.timePeriod
+      }));
+      
+      console.log('🎯 Setting comparison data:', {
+        mappedLength: mappedComparisonData.length,
+        firstMapped: mappedComparisonData[0]
+      });
+      
+      setComparisonData(mappedComparisonData);
+      
+      console.log('✅ Backend analysis data fetched successfully:', {
+        weeks: response.weeklyAnalysis?.length || 0,
+        totalSales: response.totalSales,
+        averageWeeklySales: response.averageWeeklySales
+      });
+      
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Failed to fetch weekly sales analysis from backend';
+      setError(errorMessage);
+      console.error('❌ Error fetching backend analysis:', err);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Data generation functions (integration with existing WeeklySalesAnalysis logic)
   const generateWeeklySalesData = useCallback((selectedMonthData: any, selectedWeekData: any): WeeklyComparisonData[] => {
     if (!selectedMonthData || !selectedWeekData) return [];
@@ -775,6 +862,9 @@ export const useWeeklySalesAnalysis = (): UseWeeklySalesAnalysisReturn => {
     analytics,
     comparisonData,
     
+    // Backend data
+    backendAnalysisData,
+    
     // Loading states
     isLoading,
     isGenerating,
@@ -804,7 +894,8 @@ export const useWeeklySalesAnalysis = (): UseWeeklySalesAnalysisReturn => {
     publishAnalysis,
     archiveAnalysis,
     
-    // Data generation and comparison
+    // Backend integration
+    fetchBackendAnalysis,
     
     // Utility functions
     setFilters,
