@@ -53,7 +53,7 @@ export function Login() {
             />
             <p className="text-muted-foreground text-lg">Fuel Station Management System</p>
           </div>
-          <CardTitle>Sign In</CardTitle>
+          <CardTitle>Sign In with your credentials</CardTitle>
           <CardDescription>
             Enter your credentials to access the management system
           </CardDescription>

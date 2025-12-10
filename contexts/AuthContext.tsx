@@ -12,7 +12,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API base URL
-const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8081/api';
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL);// || 'http://localhost:8081/api';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         // Fallback for development if backend is not available
-        console.log('Backend not available, using fallback authentication');
+        console.log('Backend not available, using fallback authentication to load mock user data.');
         
         // Create mock user based on username
         if (username === 'I.T' && password === '0040105715@Icon') {
