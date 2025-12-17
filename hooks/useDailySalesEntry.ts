@@ -148,14 +148,20 @@ export function useDailySalesEntry() {
       if (isConnected) {
         const endpoint = DAILY_SALES_API.ENDPOINTS.PREVIOUS_DAY_DATA
           .replace(':station', user.station.stationName)
-          .replace(':product', product);
-        
+          .replace(':product', product) + `?targetDate=${date}`;
+        console.log('the previous day endpoint is ', endpoint);
         try {
           const response = await apiCall<PreviousDayData | null>(endpoint);
-          
+          console.log('Fetched previous day data:', response);
           if (response) {
             setPreviousDayData(response);
             setIsFirstEntry(false);
+            
+            // Log PMS cash to bank data if available
+            
+             // console.log('pms cash to bank is ', response.productData?.PMS);
+             // localStorage.setItem('pmsCashToBank', JSON.stringify(response.productData?.PMS));
+            
             
             // Pre-fill opening values with previous day's closing values
             setEntry(prev => {
@@ -229,6 +235,7 @@ export function useDailySalesEntry() {
               supply: response.qty,
               overageShortageL: overageShortage
             };
+            
             return calculateFieldsImmediate(updated);
           });
             return; // Successfully got data, exit early
@@ -424,7 +431,9 @@ export function useDailySalesEntry() {
         toast.success('Daily sales entry submitted successfully!', {
           description: response.message
         });
-        
+        if (request.product === 'PMS'){
+        localStorage.setItem('pmsCashToBank', JSON.stringify(request.cashToBank.toFixed(2)));
+        }
         // Reset form
         setEntry({
           date: new Date().toISOString().split('T')[0],

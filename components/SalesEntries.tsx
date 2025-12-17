@@ -70,10 +70,12 @@ export function SalesEntries({ onViewChange }: SalesEntriesProps) {
     connectionStatus,
     lastError,
     filters,
+    pagination,
     requestEditPermission,
     exportEntries,
     refreshData,
     updateFilters,
+    updatePagination,
     canEdit,
     hasData
   } = useSalesEntries();
@@ -546,6 +548,166 @@ export function SalesEntries({ onViewChange }: SalesEntriesProps) {
                   Create First Entry
                 </Button>
               )}
+            </div>
+          )}
+          
+          {/* Pagination Controls */}
+          {pagination && entries.length > 0 && (
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+              <div className="flex items-center text-sm text-gray-600">
+                Showing {Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.totalElements || 0)} to{' '}
+                {Math.min(pagination.page * pagination.pageSize, pagination.totalElements || 0)} of{' '}
+                {pagination.totalElements || 0} entries
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Page Size Selector */}
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="pageSize" className="text-sm whitespace-nowrap">Show:</Label>
+                  <Select 
+                    value={pagination.pageSize.toString()} 
+                    onValueChange={(value) => updatePagination({ pageSize: parseInt(value), page: 1 })}
+                  >
+                    <SelectTrigger id="pageSize" className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Page Navigation */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updatePagination({ page: 1 })}
+                    disabled={pagination.page <= 1 || isLoading}
+                    className="hidden sm:flex"
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updatePagination({ page: pagination.page - 1 })}
+                    disabled={pagination.page <= 1 || isLoading}
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="hidden sm:flex items-center gap-1">
+                    {(() => {
+                      const totalPages = pagination.totalPages || 1;
+                      const currentPage = pagination.page;
+                      const pages = [];
+                      
+                      if (totalPages <= 3) {
+                        // Show all pages if 3 or fewer
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(
+                            <Button
+                              key={i}
+                              variant={i === currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => updatePagination({ page: i })}
+                              className="w-8"
+                              disabled={isLoading}
+                            >
+                              {i}
+                            </Button>
+                          );
+                        }
+                      } else {
+                        // Show first page
+                        pages.push(
+                          <Button
+                            key={1}
+                            variant={1 === currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updatePagination({ page: 1 })}
+                            className="w-8"
+                            disabled={isLoading}
+                          >
+                            1
+                          </Button>
+                        );
+                        
+                        // Show ellipsis if current page is far from start
+                        if (currentPage > 3) {
+                          pages.push(<span key="ellipsis1" className="px-2">...</span>);
+                        }
+                        
+                        // Show current page if it's not 1 or last page
+                        if (currentPage > 1 && currentPage < totalPages) {
+                          pages.push(
+                            <Button
+                              key={currentPage}
+                              variant="default"
+                              size="sm"
+                              onClick={() => updatePagination({ page: currentPage })}
+                              className="w-8"
+                              disabled={isLoading}
+                            >
+                              {currentPage}
+                            </Button>
+                          );
+                        }
+                        
+                        // Show ellipsis if current page is far from end
+                        if (currentPage < totalPages - 2) {
+                          pages.push(<span key="ellipsis2" className="px-2">...</span>);
+                        }
+                        
+                        // Show last page
+                        if (totalPages > 1) {
+                          pages.push(
+                            <Button
+                              key={totalPages}
+                              variant={totalPages === currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => updatePagination({ page: totalPages })}
+                              className="w-8"
+                              disabled={isLoading}
+                            >
+                              {totalPages}
+                            </Button>
+                          );
+                        }
+                      }
+                      
+                      return pages;
+                    })()}
+                  </div>
+                  
+                  {/* Current page indicator for mobile */}
+                  <div className="sm:hidden px-3 py-1 text-sm border rounded">
+                    {pagination.page} / {pagination.totalPages || 1}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updatePagination({ page: pagination.page + 1 })}
+                    disabled={pagination.page >= (pagination.totalPages || 1) || isLoading}
+                  >
+                    Next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updatePagination({ page: pagination.totalPages || 1 })}
+                    disabled={pagination.page >= (pagination.totalPages || 1) || isLoading}
+                    className="hidden sm:flex"
+                  >
+                    Last
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

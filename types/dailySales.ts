@@ -3,7 +3,7 @@
 export interface DailySalesEntry {
   id?: string;
   date: string;
-  product: 'Super' | 'Regular' | 'Diesel' | 'Gas' | 'Kerosene';
+  product: 'Super' | 'Regular' | 'Diesel' | 'Gas' | 'Kerosene'|'LPG' | 'PMS' | 'AGO';
   
   // Stock Management
   openSL: number; // Opening Stock in Liters
@@ -49,11 +49,25 @@ export interface DailySalesEntry {
   notes?: string;
 }
 
+export interface ProductData {
+  cashToBank?: number;
+  cashSales?: number;
+  value?: number;
+  salesL?: number;
+  [key: string]: any; // Allow for additional properties
+}
+
 export interface PreviousDayData {
   date: string;
   product: string;
   closingSL: number;
   closingSR: number;
+  productData: {
+    PMS?: ProductData;
+    AGO?: ProductData;
+    LPG?: ProductData;
+    [productName: string]: ProductData | undefined;
+  };
 }
 
 export interface SupplyData {

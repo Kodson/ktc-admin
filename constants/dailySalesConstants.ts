@@ -16,7 +16,8 @@ export const DAILY_SALES_API = {
     HEALTH_CHECK: '/health'
   }
 };
-
+//PREVIOUS_DAY_DATA: '/dailysales/latest/:station/:product',
+//PREVIOUS_DAY_DATA: '/dailysales/latest-by-date/:station/:product',
 export const DAILY_SALES_API_CONFIG = {
   TIMEOUT: 15000,
   RETRY_ATTEMPTS: 3,
@@ -75,7 +76,7 @@ export const DAILY_SALES_VALIDATION_RULES = {
     'bankLodgement'
   ],
   MIN_STOCK_LEVEL: 0,
-  MAX_STOCK_LEVEL: 50000,
+  MAX_STOCK_LEVEL: 70000,
   MIN_RATE: 1,
   MAX_RATE: 50
 };
@@ -299,11 +300,24 @@ export const validateEntry = (entry: Partial<DailySalesEntry>): string[] => {
     errors.push('Closing reading must be greater than opening reading');
   }
   
-  // Check cash variance
-  if (entry.cashToBank && entry.bankLodgement) {
-    const variance = Math.abs(entry.cashToBank - entry.bankLodgement);
+  // Check cash variance (only for AGO)
+  if (entry.product === 'AGO' && entry.cashToBank && entry.bankLodgement) {
+    // For AGO, get expected combined value (AGO + PMS cashToBank)
+    let expectedCashToBank = entry.cashToBank;
+    try {
+      const storedPmsData = localStorage.getItem('pmsCashToBank');
+      if (storedPmsData) {
+        const pmsData = JSON.parse(storedPmsData);
+        const pmsValue = parseFloat(pmsData) || 0;
+        expectedCashToBank = entry.cashToBank + pmsValue;
+      }
+    } catch (error) {
+      console.error('Error parsing PMS data for validation:', error);
+    }
+    
+    const variance = Math.abs(expectedCashToBank - entry.bankLodgement);
     if (variance > DAILY_SALES_VALIDATION_RULES.MAX_CASH_VARIANCE) {
-      errors.push(`Cash variance exceeds ₵${DAILY_SALES_VALIDATION_RULES.MAX_CASH_VARIANCE} limit`);
+      errors.push(`Cash variance exceeds ₵${DAILY_SALES_VALIDATION_RULES.MAX_CASH_VARIANCE} limit (Expected: ₵${expectedCashToBank.toFixed(2)})`);
     }
   }
   

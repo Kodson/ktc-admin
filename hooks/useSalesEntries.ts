@@ -87,7 +87,21 @@ export function useSalesEntries() {
     search: ''
   });
   
-  const [pagination, setPagination] = useState<SalesEntriesPagination>(DEFAULT_PAGINATION);
+  const [paginationParams, setPaginationParams] = useState({
+    page: DEFAULT_PAGINATION.page,
+    pageSize: DEFAULT_PAGINATION.pageSize,
+    sortBy: DEFAULT_PAGINATION.sortBy,
+    sortOrder: DEFAULT_PAGINATION.sortOrder
+  });
+  
+  const [paginationMeta, setPaginationMeta] = useState({
+    totalElements: 0,
+    totalPages: 0,
+    numberOfElements: 0,
+    first: true,
+    last: true,
+    empty: true
+  });
   
   // Error state
   const [lastError, setLastError] = useState<SalesEntriesApiError | null>(null);
@@ -211,18 +225,28 @@ export function useSalesEntries() {
           params.append('dateTo', filters.dateTo);
         }
         
-        // Add pagination
-        params.append('page', pagination.page.toString());
-        params.append('pageSize', pagination.pageSize.toString());
-        params.append('sortBy', pagination.sortBy);
-        params.append('sortOrder', pagination.sortOrder);
+        // Add pagination (convert 1-based UI pagination to 0-based backend pagination)
+        params.append('page', (paginationParams.page - 1).toString());
+        params.append('pageSize', paginationParams.pageSize.toString());
+        params.append('sortBy', paginationParams.sortBy);
+        params.append('sortOrder', paginationParams.sortOrder);
         
         const endpoint = getSalesEntriesEndpoint(user, selectedStation);
         const fullEndpoint = `${endpoint}?${params.toString()}`;
         console.log('Fetching sales entries from:', fullEndpoint);
-        const response: SalesEntriesResponse = await apiCall<SalesEntriesResponse>(endpoint);
+        const response: SalesEntriesResponse = await apiCall<SalesEntriesResponse>(fullEndpoint);
         console.log('Fetched sales entries:', response);
         setEntries(response.content || []);
+        
+        // Update pagination metadata from backend response (separate from params to prevent loop)
+        setPaginationMeta({
+          totalElements: response.totalElements,
+          totalPages: response.totalPages,
+          numberOfElements: response.numberOfElements,
+          first: response.first,
+          last: response.last,
+          empty: response.empty
+        });
         //setStatistics(response.stats);
         
         toast.success('Sales entries updated', {
@@ -304,7 +328,7 @@ export function useSalesEntries() {
     } finally {
       setIsLoading(false);
     }
-  }, [checkConnection, apiCall, filters, pagination, selectedStation, user?.role]);
+  }, [checkConnection, apiCall, filters, paginationParams, selectedStation, user?.role]);
 
   // Request edit permission
   const requestEditPermission = useCallback(async (
@@ -470,12 +494,16 @@ export function useSalesEntries() {
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<SalesEntriesFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when filters change
+    setPaginationParams(prev => ({ ...prev, page: 1 })); // Reset to first page when filters change
   }, []);
 
   // Update pagination
   const updatePagination = useCallback((newPagination: Partial<SalesEntriesPagination>) => {
-    setPagination(prev => ({ ...prev, ...newPagination }));
+    // Only update pagination parameters, not metadata
+    const { totalElements, totalPages, numberOfElements, first, last, empty, ...params } = newPagination;
+    if (Object.keys(params).length > 0) {
+      setPaginationParams(prev => ({ ...prev, ...params }));
+    }
   }, []);
 
   // Get entry by ID
@@ -516,7 +544,7 @@ export function useSalesEntries() {
     }, 300); // Debounce filter changes
     
     return () => clearTimeout(timer);
-  }, [filters, pagination, fetchEntries, selectedStation]);
+  }, [filters, paginationParams, fetchEntries, selectedStation]);
 
   // Set up auto-refresh
   useEffect(() => {
@@ -541,7 +569,7 @@ export function useSalesEntries() {
     connectionStatus,
     lastError,
     filters,
-    pagination,
+    pagination: { ...paginationParams, ...paginationMeta },
     
     // Actions
     requestEditPermission,

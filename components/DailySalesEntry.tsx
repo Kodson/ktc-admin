@@ -78,6 +78,42 @@ export function DailySalesEntry() {
     });
   }, [entry.openSL, entry.supply, entry.overageShortageL, entry.availableL, entry.product, entry.date]);
 
+  // Handle PMS and AGO bankLodgement calculations
+  useEffect(() => {
+    if (entry.product === 'PMS' && entry.cashToBank && !entry.bankLodgement) {
+      // For PMS, pre-fill bankLodgement with cashToBank (2 decimal places)
+      const formattedAmount = parseFloat(entry.cashToBank.toFixed(2));
+      updateEntry('bankLodgement', formattedAmount);
+    } else if (entry.product === 'AGO' && entry.cashToBank) {
+      // For AGO, add PMS cashToBank from localStorage
+      try {
+        const storedPmsData = localStorage.getItem('pmsCashToBank');
+        if (storedPmsData) {
+          const pmsData = JSON.parse(storedPmsData);
+          const combinedCashToBank = entry.cashToBank + (parseFloat(pmsData) || 0);
+          const formattedAmount = parseFloat(combinedCashToBank.toFixed(2));
+          console.log('AGO cashToBank calculation:', {
+            agoCashToBank: entry.cashToBank,
+            pmsCashToBank: pmsData,
+            combined: combinedCashToBank,
+            formatted: formattedAmount
+          });
+          // Update the bankLodgement to match the combined amount
+          updateEntry('bankLodgement', formattedAmount);
+        } else {
+          // If no PMS data, just use AGO cashToBank (2 decimal places)
+          const formattedAmount = parseFloat(entry.cashToBank.toFixed(2));
+          updateEntry('bankLodgement', formattedAmount);
+        }
+      } catch (error) {
+        console.error('Error parsing PMS data from localStorage:', error);
+        // Fallback to AGO cashToBank only (2 decimal places)
+        const formattedAmount = parseFloat(entry.cashToBank.toFixed(2));
+        updateEntry('bankLodgement', formattedAmount);
+      }
+    }
+  }, [entry.product, entry.cashToBank, updateEntry]);
+
   // Handle form submission
   const handleSubmit = async () => {
     const success = await submitEntry();
@@ -287,7 +323,7 @@ export function DailySalesEntry() {
                     step="1"
                     disabled={!isFirstEntry && previousDayData !== null}
                   />
-                  {previousDayData && !isFirstEntry && (
+                  {previousDayData && !isFirstEntry && previousDayData.closingSL !== undefined && (
                     <p className="text-xs text-green-600 font-normal">
                       Auto-filled from previous day: {formatLiters(previousDayData.closingSL)}
                     </p>
@@ -429,7 +465,7 @@ export function DailySalesEntry() {
                     step="0.01"
                     disabled={!isFirstEntry && previousDayData !== null}
                   />
-                  {previousDayData && !isFirstEntry && (
+                  {previousDayData && !isFirstEntry && previousDayData.closingSR !== undefined && (
                     <p className="text-xs text-green-600 font-normal">
                       Auto-filled: {previousDayData.closingSR.toLocaleString()}
                     </p>
@@ -719,23 +755,45 @@ export function DailySalesEntry() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm sm:text-base font-medium">Bank Lodgement (₵) *</Label>
+                    <Label className="text-sm sm:text-base font-medium">
+                      Bank Lodgement (₵) {entry.product === 'PMS' ? '' : '*'}
+                    </Label>
                     <Input
                       type="number"
                       value={entry.bankLodgement !== undefined ? entry.bankLodgement.toString() : ''}
                       onChange={(e) => handleNumericInput('bankLodgement', e.target.value)}
-                      placeholder="Enter actual bank lodgement"
+                      placeholder={entry.product === 'PMS' ? 'Optional for PMS' : 'Required for AGO - includes PMS cashToBank'}
                       className="text-sm sm:text-base font-normal"
                       min="0"
                       step="0.01"
                     />
-                    {entry.cashToBank && entry.bankLodgement && (
-                      <p className={`text-xs font-normal ${
-                        Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        Variance: {formatCurrency(Math.abs(entry.cashToBank - entry.bankLodgement))}
+                    {entry.product === 'AGO' && (
+                      <p className="text-xs text-blue-600 font-normal">
+                        AGO cashToBank + PMS cashToBank from previous entry
                       </p>
                     )}
+                    {entry.product === 'AGO' && entry.cashToBank && entry.bankLodgement && (() => {
+                      // Calculate expected combined value for AGO
+                      let expectedCashToBank = entry.cashToBank;
+                      try {
+                        const storedPmsData = localStorage.getItem('pmsCashToBank');
+                        if (storedPmsData) {
+                          const pmsData = JSON.parse(storedPmsData);
+                          const pmsValue = parseFloat(pmsData) || 0;
+                          expectedCashToBank = entry.cashToBank + pmsValue;
+                        }
+                      } catch (error) {
+                        console.error('Error parsing PMS data for variance:', error);
+                      }
+                      const variance = Math.abs(expectedCashToBank - entry.bankLodgement);
+                      return (
+                        <p className={`text-xs font-normal ${
+                          variance <= 100 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          Variance: {formatCurrency(variance)}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -798,32 +856,59 @@ export function DailySalesEntry() {
                   <span className="text-sm font-medium">{entry.bankLodgement ? formatCurrency(entry.bankLodgement) : '—'}</span>
                 </div>
                 
-                {/* Variance Alert */}
-                {entry.cashToBank && entry.bankLodgement && (
-                  <div className={`p-3 rounded-lg ${
-                    Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 
-                      ? 'bg-green-50 border border-green-200' 
-                      : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center space-x-2">
-                      {Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className={`text-sm font-medium ${
-                        Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 ? 'text-green-800' : 'text-red-800'
-                      }`}>
-                        {Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 ? 'Variance OK' : 'High Variance'}
-                      </span>
-                    </div>
-                    <p className={`text-xs font-normal mt-1 ${
-                      Math.abs(entry.cashToBank - entry.bankLodgement) <= 100 ? 'text-green-700' : 'text-red-700'
+                {/* Variance Alert - Only for AGO */}
+                {entry.product === 'AGO' && entry.cashToBank && entry.bankLodgement && (() => {
+                  // Calculate expected combined value for AGO
+                  let expectedCashToBank = entry.cashToBank;
+                  let pmsValue = 0;
+                  try {
+                    const storedPmsData = localStorage.getItem('pmsCashToBank');
+                    if (storedPmsData) {
+                      const pmsData = JSON.parse(storedPmsData);
+                      pmsValue = parseFloat(pmsData) || 0;
+                      expectedCashToBank = entry.cashToBank + pmsValue;
+                    }
+                  } catch (error) {
+                    console.error('Error parsing PMS data for variance:', error);
+                  }
+                  
+                  console.log('AGO Variance Calculation:', {
+                    agoCashToBank: entry.cashToBank,
+                    pmsFromStorage: pmsValue,
+                    expectedCombined: expectedCashToBank,
+                    actualBankLodgement: entry.bankLodgement
+                  });
+                  
+                  const variance = Math.abs(expectedCashToBank - entry.bankLodgement);
+                  const isVarianceOk = variance <= 100;
+                  
+                  return (
+                    <div className={`p-3 rounded-lg ${
+                      isVarianceOk 
+                        ? 'bg-green-50 border border-green-200' 
+                        : 'bg-red-50 border border-red-200'
                     }`}>
-                      {formatCurrency(Math.abs(entry.cashToBank - entry.bankLodgement))} difference
-                    </p>
-                  </div>
-                )}
+                      <div className="flex items-center space-x-2">
+                        {isVarianceOk ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                        )}
+                        <span className={`text-sm font-medium ${
+                          isVarianceOk ? 'text-green-800' : 'text-red-800'
+                        }`}>
+                          {isVarianceOk ? 'Variance OK' : 'High Variance'}
+                        </span>
+                      </div>
+                      <p className={`text-xs font-normal mt-1 ${
+                        isVarianceOk ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {formatCurrency(variance)} difference (Expected: {formatCurrency(expectedCashToBank)})
+                        {pmsValue > 0 && <span className="block text-xs mt-1">PMS: {formatCurrency(pmsValue)} + AGO: {formatCurrency(entry.cashToBank)}</span>}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <Separator />

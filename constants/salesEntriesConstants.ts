@@ -378,7 +378,7 @@ export const DEFAULT_PAGINATION = {
   page: 1,
   pageSize: 20,
   sortBy: 'date' as const,
-  sortOrder: 'desc' as const
+  sortOrder: 'asc' as const
 };
 
 // Export formats
@@ -430,8 +430,21 @@ export const formatDate = (dateString: string | undefined | null): string => {
     return 'N/A';
   }
   try {
+    // Handle YYYY-MM-DD format from backend to avoid timezone issues
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day); // month is 0-indexed
+      
+      if (!isNaN(dateObj.getTime())) {
+        const dayNum = dateObj.getDate();
+        const monthName = dateObj.toLocaleString('en-GH', { month: 'short' });
+        const yearNum = dateObj.getFullYear();
+        return `${dayNum} ${monthName} ${yearNum}`;
+      }
+    }
+    
+    // Fallback to regular Date parsing for other formats
     const dateObj = new Date(dateString);
-    // If valid date, format as '5 Sept 2025'
     if (!isNaN(dateObj.getTime())) {
       const day = dateObj.getDate();
       const month = dateObj.toLocaleString('en-GH', { month: 'short' });

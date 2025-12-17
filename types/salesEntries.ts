@@ -102,12 +102,35 @@ export interface EditPermissionRequest {
 }
 
 export interface SalesEntriesResponse {
-  success: boolean;
+  success?: boolean;
   content: SalesEntry[];
-  stats: SalesEntriesStats;
-  total: number;
-  page: number;
-  pageSize: number;
+  stats?: SalesEntriesStats;
+  // Backend pagination metadata (Spring Boot Page structure)
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  numberOfElements: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    offset: number;
+    paged: boolean;
+    unpaged: boolean;
+  };
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
   message?: string;
 }
 
@@ -130,6 +153,13 @@ export interface SalesEntriesPagination {
   pageSize: number;
   sortBy: 'date' | 'product' | 'status' | 'enteredAt' | 'salesValue' | 'salesVolume';
   sortOrder: 'asc' | 'desc';
+  // Pagination metadata from backend response
+  totalElements?: number;
+  totalPages?: number;
+  numberOfElements?: number;
+  first?: boolean;
+  last?: boolean;
+  empty?: boolean;
 }
 
 // API Error types
